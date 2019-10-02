@@ -7,12 +7,44 @@ fn main(){
     exit(1)
   }
   
-  num := args[1].int()
-  program := '.intel_syntax noprefix
+  program := args[1]
+  mut pos := 0
+
+  mut start_pos := pos
+  for pos < program.len && program[pos].is_digit() {
+    pos++
+  }
+  mut number := program.substr(start_pos, pos)
+  println('.intel_syntax noprefix
 .global main
 main:
-  mov rax, $num
-  ret'
+  mov rax, $number')
+  for pos < program.len {
+    if program[pos] == `+` {
+      pos++
+      start_pos = pos
+      for pos < program.len && program[pos].is_digit() {
+        pos++
+      }
+      number = program.substr(start_pos, pos)
+      println('  add rax, $number')
+      continue
+    }
+
+    if program[pos] == `-` {
+      pos++
+      start_pos = pos
+      for pos < program.len && program[pos].is_digit() {
+        pos++
+      }
+      number = program.substr(start_pos, pos)
+      println('  sub rax, $number')
+      continue
+    }
+
+    eprintln('Unexpected character: ${program[pos]}')
+    exit(1)
+  }
   
-  println(program)
+  println('  ret')
 }
