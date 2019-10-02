@@ -3,6 +3,7 @@ vcc:
 
 test: vcc
 	./test.sh
+	make clean
 
 clean:
 	rm -f vcc tmp*
