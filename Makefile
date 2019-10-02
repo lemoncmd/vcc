@@ -1,5 +1,5 @@
 vcc:
-	v -o vcc main.v
+	v -o vcc ./src
 
 test: vcc
 	./test.sh
