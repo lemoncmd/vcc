@@ -37,7 +37,7 @@ fn tokenize(p string) []Tok {
       continue
     }
 
-    if p[pos] == `+` || p[pos] == `-` || p[pos] == `*` || p[pos] == `/` || p[pos] == `(` || p[pos] == `)` {
+    if p[pos] in [`+`, `-`, `*`, `/`, `(`, `)`] {
       tokens << new_token(.reserved, p[pos++].str(), line, lpos)
       lpos++
       continue

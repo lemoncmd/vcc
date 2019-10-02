@@ -84,18 +84,27 @@ fn (p mut Parser) expr() &Node {
 }
 
 fn (p mut Parser) mul() &Node {
-  mut node := p.primary()
+  mut node := p.unary()
 
   for {
     if p.consume('*') {
-      node = p.new_node(.mul, node, p.primary())
+      node = p.new_node(.mul, node, p.unary())
     } else if p.consume('/') {
-      node = p.new_node(.div, node, p.primary())
+      node = p.new_node(.div, node, p.unary())
     } else {
       return node
     }
   }
   return node
+}
+
+fn (p mut Parser) unary() &Node {
+  if p.consume('+') {
+    return p.primary()
+  } else if p.consume('-') {
+    return p.new_node(.sub, p.new_node_num(0), p.primary())
+  }
+  return p.primary()
 }
 
 fn (p mut Parser) primary() &Node {
