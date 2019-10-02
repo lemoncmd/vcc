@@ -3,6 +3,8 @@ import os
 struct Tok {
   kind Token
   str string
+  line int
+  pos int
 }
 
 enum Token {
@@ -11,22 +13,43 @@ enum Token {
   num
 }
 
-fn new_token(token Token, s string) Tok {
-  return Tok{token, s}
+fn parse_err(s string){
+  eprintln(s)
+  exit(1)
+}
+
+fn unexp_err(token Tok, s string){
+  eprintln('${token.line}:${token.pos}: $s')
+  exit(1)
+}
+
+fn new_token(token Token, s string, line, pos int) Tok {
+  return Tok{token, s, line, pos}
 }
 
 fn tokenize(p string) []Tok {
   mut tokens := []Tok
   mut pos := 0
+  mut line := 1
+  mut lpos := 0
 
   for pos < p.len {
+    if p[pos] == `\n` {
+      pos++
+      line++
+      lpos = 0
+      continue
+    }
+
     if p[pos].is_space() {
       pos++
+      lpos++
       continue
     }
 
     if p[pos] == `+` || p[pos] == `-` {
-      tokens << new_token(.reserved, p[pos++].str())
+      tokens << new_token(.reserved, p[pos++].str(), line, lpos)
+      lpos++
       continue
     }
 
@@ -34,15 +57,16 @@ fn tokenize(p string) []Tok {
       start_pos := pos
       for pos < p.len && p[pos].is_digit() {
         pos++
+        lpos++
       }
-      tokens << new_token(.num, p.substr(start_pos, pos))
+      tokens << new_token(.num, p.substr(start_pos, pos), line, lpos)
       continue
     }
 
-    eprintln('Cannot tokenize')
+    parse_err('$line:$lpos: Cannot tokenize')
   }
 
-  tokens << new_token(.eof, '')
+  tokens << new_token(.eof, '', line, lpos)
   return tokens
 }
 
@@ -55,16 +79,14 @@ fn (token Tok) consume(op string) bool {
 
 fn (token Tok) expect(op string) {
   if token.kind != .reserved || token.str != op {
-    eprintln('Expected $op but got ${token.str}')
-    exit(1)
+    unexp_err(token, 'Expected $op but got ${token.str}')
   }
   return
 }
 
 fn (token Tok) expect_number() int {
   if token.kind != .num {
-    eprintln('Expected number')
-    exit(1)
+    unexp_err(token, 'Expected number')
   }
   return token.str.int()
 }
