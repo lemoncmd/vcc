@@ -11,6 +11,10 @@ enum Nodekind {
   sub
   mul
   div
+  eq
+  ne
+  gt
+  ge
   num
 }
 
@@ -69,6 +73,44 @@ fn (p Parser) new_node_num(num int) &Node {
 }
 
 fn (p mut Parser) expr() &Node {
+  return p.equality()
+}
+
+fn (p mut Parser) equality() &Node {
+  mut node := p.relational()
+
+  for {
+    if p.consume('==') {
+      node = p.new_node(.eq, node, p.relational())
+    } else if p.consume('!=') {
+      node = p.new_node(.ne, node, p.relational())
+    } else {
+      return node
+    }
+  }
+  return node
+}
+
+fn (p mut Parser) relational() &Node {
+  mut node := p.add()
+
+  for {
+    if p.consume('>') {
+      node = p.new_node(.gt, node, p.add())
+    } else if p.consume('>=') {
+      node = p.new_node(.ge, node, p.add())
+    } else if p.consume('<') {
+      node = p.new_node(.gt, p.add(), node)
+    } else if p.consume('<=') {
+      node = p.new_node(.ge, p.add(), node)
+    } else {
+      return node
+    }
+  }
+  return node
+}
+
+fn (p mut Parser) add() &Node {
   mut node := p.mul()
 
   for {

@@ -30,6 +30,16 @@ fn gen(node &Node) {
     .mul => {println('  imul rax, rdi')}
     .div => {println('  cqo
   idiv rdi')}
+    else => {
+      println('  cmp rax, rdi')
+      match node.kind {
+        .eq => {println('  sete al')}
+        .ne => {println('  setne al')}
+        .gt => {println('  setg al')}
+        .ge => {println('  setge al')}
+      }
+      println('  movzb rax, al')
+    }
   }
 
   println('  push rax')
