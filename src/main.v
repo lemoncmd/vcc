@@ -66,6 +66,17 @@ fn gen(node &Node) {
 .Lend${node.num}:')
       return
     }
+    .while => {
+      println('.Lbegin${node.num}:')
+      gen(node.cond)
+      println('  pop rax
+  cmp rax, 0
+  je .Lend${node.num}')
+      gen(node.left)
+      println('  jmp .Lbegin${node.num}
+.Lend${node.num}:')
+      return
+    }
     .num => {
       println('  push ${node.num}')
       return

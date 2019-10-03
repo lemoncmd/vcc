@@ -205,6 +205,13 @@ fn (p mut Parser) stmt() &Node {
     stmt := p.stmt()
     node = p.new_node_with_all(.forn, first, cond, stmt, right, p.ifnum)
     p.ifnum++
+  } else if p.consume('while') {
+    p.expect('(')
+    expr := p.expr()
+    p.expect(')')
+    stmt := p.stmt()
+    node = p.new_node_with_cond(.while, expr, stmt, &Node{}, p.ifnum)
+    p.ifnum++
   } else {
     node = p.expr()
     p.expect(';')
