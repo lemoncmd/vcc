@@ -6,6 +6,7 @@ mut:
   pos int
   locals []Lvar
   code []Node
+  ifnum int
 }
 
 enum Nodekind {
@@ -21,10 +22,13 @@ enum Nodekind {
   num
   lvar
   ret
+  ifn
+  ifelse
 }
 
 struct Node {
   kind Nodekind
+  cond &Node
   left &Node
   right &Node
   num int
@@ -83,6 +87,18 @@ fn (p Parser) new_node(kind Nodekind, left, right &Node) &Node {
   return node
 }
 
+fn (p Parser) new_node_with_cond(kind Nodekind, cond, left, right &Node, num int) &Node {
+  node := &Node{
+    kind:kind
+    cond:cond
+    left:left
+    right:right
+    num:num
+    offset:0
+  }
+  return node
+}
+
 fn (p Parser) new_node_num(num int) &Node {
   node := &Node{
     kind:Nodekind.num
@@ -133,10 +149,23 @@ fn (p mut Parser) stmt() &Node {
   mut node := &Node{}
   if p.consume('return') {
     node = p.new_node(.ret, p.expr(), &Node{})
+    p.expect(';')
+  } else if p.consume('if') {
+    p.expect('(')
+    expr := p.expr()
+    p.expect(')')
+    stmt_true := p.stmt()
+    if p.consume('else') {
+      stmt_false := p.stmt()
+      node = p.new_node_with_cond(.ifelse, expr, stmt_true, stmt_false, p.ifnum)
+    } else {
+      node = p.new_node_with_cond(.ifn, expr, stmt_true, &Node{}, p.ifnum)
+    }
+    p.ifnum++
   } else {
     node = p.expr()
+    p.expect(';')
   }
-  p.expect(';')
   return node
 }
 

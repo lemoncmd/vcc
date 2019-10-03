@@ -38,5 +38,12 @@ try 5 'foo=2;bar=4-1;foo=foo+bar;foo;'
 try 3 'foo=2;return bar=4-1;foo=foo+bar;foo;'
 try 2 'foo=bar=2;return foo;'
 try 4 'returna = 3; _1_ = returna + 1; return _1_;'
+try 6 'ife = 2; if(ife > 5) return ife; else return 6;'
+try 7 'ife = 7; if(ife > 5) return ife; else return 6;'
+try 23 'if(1)a=23; return a;'
+try 34 'hoge = 3; if(hoge > 6) return 23; else if (hoge>2) return 34; else return 45;'
+try 22 'huga=3;if(huga>1)if(huga<5)return 22;return 4;'
+try 4 'huga=1;if(huga>1)if(huga<5)return 22;return 4;'
+try 4 'huga=7;if(huga>1)if(huga<5)return 22;return 4;'
 
 echo OK

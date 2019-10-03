@@ -32,6 +32,27 @@ fn gen(node &Node) {
   ret')
       return
     }
+    .ifn => {
+      gen(node.cond)
+      println('  pop rax
+  cmp rax, 0
+  je .Lend${node.num}')
+      gen(node.left)
+      println('.Lend${node.num}:')
+      return
+    }
+    .ifelse => {
+      gen(node.cond)
+      println('  pop rax
+  cmp rax, 0
+  je .Lelse${node.num}')
+      gen(node.left)
+      println('  jmp .Lend${node.num}
+.Lelse${node.num}:')
+      gen(node.right)
+      println('.Lend${node.num}:')
+      return
+    }
     .num => {
       println('  push ${node.num}')
       return
