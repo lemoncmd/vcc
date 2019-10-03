@@ -32,6 +32,14 @@ fn gen(node &Node) {
   ret')
       return
     }
+    .block => {
+      for i in node.code {
+        code := &Node(i)
+        gen(code)
+        println('  pop rax')
+      }
+      return
+    }
     .ifn => {
       gen(node.cond)
       println('  pop rax
@@ -145,7 +153,7 @@ fn main(){
   offset := if parser.locals.len == 0 {
     0
   } else {
-    (parser.locals.last()).offset
+    &Lvar(parser.locals.last()).offset
   }
 
   println('.intel_syntax noprefix
@@ -156,7 +164,8 @@ main:
   sub rsp, $offset')
 
   for node in parser.code {
-    gen(node)
+    code := &Node(node)
+    gen(code)
     println('  pop rax')
   }
 

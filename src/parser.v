@@ -4,8 +4,8 @@ struct Parser {
   tokens []Tok
 mut:
   pos int
-  locals []Lvar
-  code []Node
+  locals []voidptr // []&Lvar
+  code []voidptr // []&Node
   ifnum int
 }
 
@@ -26,6 +26,7 @@ enum Nodekind {
   ifelse
   forn
   while
+  block
 }
 
 struct Node {
@@ -36,11 +37,21 @@ struct Node {
   right &Node
   num int
   offset int
+mut:
+  code []voidptr
 }
 
 struct Lvar {
   name string
   offset int
+}
+
+fn (p Parser) look_for(op string) bool {
+  token := p.tokens[p.pos]
+  if token.kind != .reserved || token.str != op {
+    return false
+  }
+  return true
 }
 
 fn (p mut Parser) consume(op string) bool {
@@ -145,9 +156,10 @@ fn (p Parser) new_lvar(name string, offset int) &Lvar {
   return lvar
 }
 
-fn (p Parser) find_lvar(name string) ?Lvar {
+fn (p Parser) find_lvar(name string) ?voidptr {
   for i in p.locals {
-    if i.name == name {
+    lvar := &Lvar(i)
+    if lvar.name == name {
       return i
     }
   }
@@ -156,8 +168,7 @@ fn (p Parser) find_lvar(name string) ?Lvar {
 
 fn (p mut Parser) program() {
   for p.tokens[p.pos].kind != .eof {
-    stmt := p.stmt()
-    p.code << *stmt
+    p.code << voidptr(p.stmt())
   }
 }
 
@@ -166,6 +177,8 @@ fn (p mut Parser) stmt() &Node {
   if p.consume('return') {
     node = p.new_node(.ret, p.expr(), &Node{})
     p.expect(';')
+  } else if p.look_for('{') {
+    node = p.block()
   } else if p.consume('if') {
     p.expect('(')
     expr := p.expr()
@@ -215,6 +228,15 @@ fn (p mut Parser) stmt() &Node {
   } else {
     node = p.expr()
     p.expect(';')
+  }
+  return node
+}
+
+fn (p mut Parser) block() &Node {
+  mut node := p.new_node(.block, &Node{}, &Node{})
+  p.expect('{')
+  for !p.consume('}') {
+    node.code << voidptr(p.stmt())
   }
   return node
 }
@@ -319,14 +341,14 @@ fn (p mut Parser) primary() &Node {
     mut offset := if p.locals.len == 0 {
       0
     } else {
-      (p.locals.last()).offset
+      &Lvar(p.locals.last()).offset
     }
     offset += 8
     lvar := p.new_lvar(name, offset)
-    p.locals << *lvar
+    p.locals << voidptr(lvar)
     node := p.new_node_lvar(lvar.offset)
     return node
   }
-  return p.new_node_lvar(lvar.offset)
+  return p.new_node_lvar(&Lvar(lvar).offset)
 }
 

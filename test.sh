@@ -48,5 +48,7 @@ try 4 'huga=7;if(huga>1)if(huga<5)return 22;return 4;'
 try 45 'foo = 0; for(i=0; i<10; i=i+1)foo=foo+i;return foo;'
 try 11 'foo = 0; for(;;)if((foo=foo+1)>10)return foo;'
 try 55 'foo = i = 0; while(i<10)foo=foo+(i=i+1);return foo;'
+try 45 'foo = i = 0; while(i<10){foo=foo+i;i=i+1;}return foo;'
+try 15 'foo=0;for(i=0; i<10; i=i+1){if(i-i/2*2==1){foo=foo+1;}else{foo=foo+2;}}return foo;'
 
 echo OK
