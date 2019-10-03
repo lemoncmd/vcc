@@ -24,11 +24,14 @@ enum Nodekind {
   ret
   ifn
   ifelse
+  forn
+  while
 }
 
 struct Node {
   kind Nodekind
   cond &Node
+  first &Node
   left &Node
   right &Node
   num int
@@ -99,6 +102,19 @@ fn (p Parser) new_node_with_cond(kind Nodekind, cond, left, right &Node, num int
   return node
 }
 
+fn (p Parser) new_node_with_all(kind Nodekind, first, cond, left, right &Node, num int) &Node {
+  node := &Node{
+    kind:kind
+    cond:cond
+    first:first
+    left:left
+    right:right
+    num:num
+    offset:0
+  }
+  return node
+}
+
 fn (p Parser) new_node_num(num int) &Node {
   node := &Node{
     kind:Nodekind.num
@@ -161,6 +177,33 @@ fn (p mut Parser) stmt() &Node {
     } else {
       node = p.new_node_with_cond(.ifn, expr, stmt_true, &Node{}, p.ifnum)
     }
+    p.ifnum++
+  } else if p.consume('for') {
+    p.expect('(')
+    mut node_tmp := &Node{}
+    first := if p.consume(';') {
+      p.new_node_num(0)
+    } else {
+      node_tmp = p.expr()
+      p.expect(';')
+      node_tmp
+    }
+    cond := if p.consume(';') {
+      p.new_node_num(1)
+    } else {
+      node_tmp = p.expr()
+      p.expect(';')
+      node_tmp
+    }
+    right := if p.consume(')') {
+      p.new_node_num(0)
+    } else {
+      node_tmp = p.expr()
+      p.expect(')')
+      node_tmp
+    }
+    stmt := p.stmt()
+    node = p.new_node_with_all(.forn, first, cond, stmt, right, p.ifnum)
     p.ifnum++
   } else {
     node = p.expr()

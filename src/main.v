@@ -53,6 +53,19 @@ fn gen(node &Node) {
       println('.Lend${node.num}:')
       return
     }
+    .forn => {
+      gen(node.first)
+      println('.Lbegin${node.num}:')
+      gen(node.cond)
+      println('  pop rax
+  cmp rax, 0
+  je .Lend${node.num}')
+      gen(node.left)
+      gen(node.right)
+      println('  jmp .Lbegin${node.num}
+.Lend${node.num}:')
+      return
+    }
     .num => {
       println('  push ${node.num}')
       return

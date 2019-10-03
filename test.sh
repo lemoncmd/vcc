@@ -45,5 +45,6 @@ try 34 'hoge = 3; if(hoge > 6) return 23; else if (hoge>2) return 34; else retur
 try 22 'huga=3;if(huga>1)if(huga<5)return 22;return 4;'
 try 4 'huga=1;if(huga>1)if(huga<5)return 22;return 4;'
 try 4 'huga=7;if(huga>1)if(huga<5)return 22;return 4;'
-
+try 45 'foo = 0; for(i=0; i<10; i=i+1)foo=foo+i;return foo;'
+try 11 'foo = 0; for(;;)if((foo=foo+1)>10)return foo;'
 echo OK
