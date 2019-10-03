@@ -4,9 +4,12 @@ struct Parser {
   tokens []Tok
 mut:
   pos int
+  locals []Lvar
+  code []Node
 }
 
 enum Nodekind {
+  assign
   add
   sub
   mul
@@ -16,6 +19,7 @@ enum Nodekind {
   gt
   ge
   num
+  lvar
 }
 
 struct Node {
@@ -23,6 +27,12 @@ struct Node {
   left &Node
   right &Node
   num int
+  offset int
+}
+
+struct Lvar {
+  name string
+  offset int
 }
 
 fn (p mut Parser) consume(op string) bool {
@@ -32,6 +42,15 @@ fn (p mut Parser) consume(op string) bool {
   }
   p.pos++
   return true
+}
+
+fn (p mut Parser) consume_ident() ?string {
+  token := p.tokens[p.pos]
+  if token.kind == .ident {
+    p.pos++
+    return token.str
+  }
+  return none
 }
 
 fn (p mut Parser) expect(op string) {
@@ -58,6 +77,7 @@ fn (p Parser) new_node(kind Nodekind, left, right &Node) &Node {
     left:left
     right:right
     num:0
+    offset:0
   }
   return node
 }
@@ -68,12 +88,63 @@ fn (p Parser) new_node_num(num int) &Node {
     left:0
     right:0
     num:num
+    offset:0
   }
   return node
 }
 
+fn (p Parser) new_node_lvar(offset int) &Node {
+  node := &Node{
+    kind:Nodekind.lvar
+    left:0
+    right:0
+    num:0
+    offset:offset
+  }
+  return node
+}
+
+fn (p Parser) new_lvar(name string, offset int) &Lvar {
+  lvar := &Lvar{
+    name:name
+    offset:offset
+  }
+  return lvar
+}
+
+fn (p Parser) find_lvar(name string) ?Lvar {
+  for i in p.locals {
+    if i.name == name {
+      return i
+    }
+  }
+  return none
+}
+
+fn (p mut Parser) program() {
+  for p.tokens[p.pos].kind != .eof {
+    stmt := p.stmt()
+    p.code << *stmt
+  }
+}
+
+fn (p mut Parser) stmt() &Node {
+  node := p.expr()
+  p.expect(';')
+  return node
+}
+
 fn (p mut Parser) expr() &Node {
-  return p.equality()
+  return p.assign()
+}
+
+fn (p mut Parser) assign() &Node {
+  mut node := p.equality()
+
+  if p.consume('=') {
+    node = p.new_node(.assign, node, p.assign())
+  }
+  return node
 }
 
 fn (p mut Parser) equality() &Node {
@@ -155,6 +226,21 @@ fn (p mut Parser) primary() &Node {
     p.expect(')')
     return node
   }
-  return p.new_node_num(p.expect_number())
+  name := p.consume_ident() or {
+    return p.new_node_num(p.expect_number())
+  }
+
+  lvar := p.find_lvar(name) or {
+    offset := if p.locals.len == 0 {
+      0
+    } else {
+      (p.locals.last()).offset + 8
+    }
+    lvar := p.new_lvar(name, offset)
+    p.locals << *lvar
+    node := p.new_node_lvar(lvar.offset)
+    return node
+  }
+  return p.new_node_lvar(lvar.offset)
 }
 

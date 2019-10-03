@@ -12,10 +12,39 @@ fn unexp_err(token Tok, s string){
   exit(1)
 }
 
+fn gen_lval(node &Node) {
+  if node.kind != .lvar {
+    parse_err('Assignment Error: left value is not variable')
+  }
+
+  println('  mov rax, rbp
+  sub rax, ${node.offset}
+  push rax')
+}
+
 fn gen(node &Node) {
-  if node.kind == .num {
-    println('  push ${node.num}')
-    return
+  match node.kind {
+    .num => {
+      println('  push ${node.num}')
+      return
+    }
+    .lvar => {
+      gen_lval(node)
+      println('  pop rax
+  mov rax, [rax]
+  push rax')
+      return
+    }
+    .assign => {
+      gen_lval(node.left)
+      gen(node.right)
+
+      println('  pop rdi
+  pop rax
+  mov [rax], rdi
+  push rdi')
+      return
+    }
   }
 
   gen(node.left)
@@ -58,14 +87,27 @@ fn main(){
     tokens:tokenize(program),
     pos:0
   }
-  node := parser.expr()
+  parser.program()
+
+  offset := if parser.locals.len == 0 {
+    0
+  } else {
+    (parser.locals.last()).offset
+  }
 
   println('.intel_syntax noprefix
 .global main
-main:')
+main:
+  push rbp
+  mov rbp, rsp
+  sub rsp, $offset')
 
-  gen(node)
+  for node in parser.code {
+    gen(node)
+    println('  pop rax')
+  }
 
-  println('  pop rax
+  println('  mov rsp, rbp
+  pop rbp
   ret')
 }

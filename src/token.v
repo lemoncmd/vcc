@@ -9,6 +9,7 @@ struct Tok {
 
 enum Token {
   eof
+  ident
   reserved
   num
 }
@@ -44,7 +45,7 @@ fn tokenize(p string) []Tok {
       continue
     }
 
-    if p[pos] in [`+`, `-`, `*`, `/`, `(`, `)`, `<`, `>`] {
+    if p[pos] in [`+`, `-`, `*`, `/`, `(`, `)`, `<`, `>`, `;`, `=`] {
       tokens << new_token(.reserved, p[pos++].str(), line, lpos)
       lpos++
       continue
@@ -57,6 +58,16 @@ fn tokenize(p string) []Tok {
         lpos++
       }
       tokens << new_token(.num, p.substr(start_pos, pos), line, lpos)
+      continue
+    }
+
+    if p[pos].is_letter() || p[pos] == `_` {
+      start_pos := pos
+      for pos < p.len && (p[pos].is_letter() || p[pos] == `_`) {
+        pos++
+        lpos++
+      }
+      tokens << new_token(.ident, p.substr(start_pos, pos), line, lpos)
       continue
     }
 
