@@ -20,6 +20,7 @@ enum Nodekind {
   ge
   num
   lvar
+  ret
 }
 
 struct Node {
@@ -129,7 +130,12 @@ fn (p mut Parser) program() {
 }
 
 fn (p mut Parser) stmt() &Node {
-  node := p.expr()
+  mut node := &Node{}
+  if p.consume('return') {
+    node = p.new_node(.ret, p.expr(), &Node{})
+  } else {
+    node = p.expr()
+  }
   p.expect(';')
   return node
 }

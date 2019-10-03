@@ -35,5 +35,8 @@ try 1 '43>=43;'
 try 0 '(0<1)*2!=2;'
 try 1 '1>2==3>=4;'
 try 5 'foo=2;bar=4-1;foo=foo+bar;foo;'
+try 3 'foo=2;return bar=4-1;foo=foo+bar;foo;'
+try 2 'foo=bar=2;return foo;'
+try 4 'returna = 3; _1_ = returna + 1; return _1_;'
 
 echo OK

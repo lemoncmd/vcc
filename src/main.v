@@ -24,6 +24,14 @@ fn gen_lval(node &Node) {
 
 fn gen(node &Node) {
   match node.kind {
+    .ret => {
+      gen(node.left)
+      println('  pop rax
+  mov rsp, rbp
+  pop rbp
+  ret')
+      return
+    }
     .num => {
       println('  push ${node.num}')
       return
