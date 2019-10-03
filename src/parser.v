@@ -309,11 +309,12 @@ fn (p mut Parser) primary() &Node {
   }
 
   lvar := p.find_lvar(name) or {
-    offset := if p.locals.len == 0 {
+    mut offset := if p.locals.len == 0 {
       0
     } else {
-      (p.locals.last()).offset + 8
+      (p.locals.last()).offset
     }
+    offset += 8
     lvar := p.new_lvar(name, offset)
     p.locals << *lvar
     node := p.new_node_lvar(lvar.offset)
