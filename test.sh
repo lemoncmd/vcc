@@ -2,6 +2,7 @@
 cat <<EOF > tmp2.c
 #include <stdio.h>
 int foo(){return 21;}
+int bar(int i, int j){return i+j;}
 int hw(){printf("Hello, world!\\n");}
 EOF
 gcc -c -o tmp2.o tmp2.c
@@ -58,5 +59,6 @@ try 45 'foo = i = 0; while(i<10){foo=foo+i;i=i+1;}return foo;'
 try 15 'foo=0;for(i=0; i<10; i=i+1){if(i-i/2*2==1){foo=foo+1;}else{foo=foo+2;}}return foo;'
 try 21 'return foo();'
 try 42 'foo=2;return foo()*foo;'
+try 55 'return foo()*bar(2,3)-50;'
 
 echo OK

@@ -28,6 +28,7 @@ enum Nodekind {
   while
   block
   call
+  args
 }
 
 struct Node {
@@ -146,10 +147,11 @@ fn (p Parser) new_node_lvar(offset int) &Node {
   return node
 }
 
-fn (p Parser) new_node_str(kind Nodekind, name string) &Node {
+fn (p Parser) new_node_str(kind Nodekind, num int, name string, args &Node) &Node {
   node := &Node{
     kind:kind
-    num:0
+    left:args
+    num:num
     offset:0
     name:name
   }
@@ -335,6 +337,15 @@ fn (p mut Parser) unary() &Node {
   return p.primary()
 }
 
+fn (p mut Parser) args() (&Node, int) {
+  expr := p.expr()
+  if p.consume(',') {
+    args, num := p.args()
+    return p.new_node(.args, expr, args), num+1
+  }
+  return p.new_node(.args, expr, &Node{}), 1
+}
+
 fn (p mut Parser) primary() &Node {
   if p.consume('(') {
     node := p.expr()
@@ -346,8 +357,13 @@ fn (p mut Parser) primary() &Node {
   }
 
   if p.consume('(') {
-    p.expect(')')
-    return p.new_node_str(.call, name)
+    if p.consume(')') {
+      return p.new_node_str(.call, 0, name, &Node{})
+    } else {
+      args, num := p.args()
+      p.expect(')')
+      return p.new_node_str(.call, num, name, args)
+    }
   }
 
   lvar := p.find_lvar(name) or {

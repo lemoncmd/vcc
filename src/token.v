@@ -62,7 +62,7 @@ fn tokenize(p string) []Tok {
       continue
     }
 
-    if pos + 4 < p.len && p.substr(pos, pos+5) == 'while' && 
+    if pos + 4 < p.len && p.substr(pos, pos+5) == 'while' &&
        !p[pos+5].is_letter() && !p[pos+5].is_digit() && p[pos+5] != `_` {
       tokens << new_token(.reserved, 'while', line, lpos)
       pos += 5
@@ -70,7 +70,7 @@ fn tokenize(p string) []Tok {
       continue
     }
 
-    if pos + 2 < p.len && p.substr(pos, pos+3) == 'for' && 
+    if pos + 2 < p.len && p.substr(pos, pos+3) == 'for' &&
        !p[pos+3].is_letter() && !p[pos+3].is_digit() && p[pos+3] != `_` {
       tokens << new_token(.reserved, 'for', line, lpos)
       pos += 3
@@ -85,7 +85,7 @@ fn tokenize(p string) []Tok {
       continue
     }
 
-    if p[pos] in [`+`, `-`, `*`, `/`, `(`, `)`, `<`, `>`, `;`, `=`, `{`, `}`] {
+    if p[pos] in [`+`, `-`, `*`, `/`, `(`, `)`, `<`, `>`, `;`, `=`, `{`, `}`, `,`] {
       tokens << new_token(.reserved, p[pos++].str(), line, lpos)
       lpos++
       continue
