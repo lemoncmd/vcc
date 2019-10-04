@@ -17,19 +17,19 @@ fn gen_lval(node &Node) {
     parse_err('Assignment Error: left value is not variable')
   }
 
-  println('  mov rax, rbp
-  sub rax, ${node.offset}
-  push rax')
+  println('  mov rax, rbp')
+  println('  sub rax, ${node.offset}')
+  println('  push rax')
 }
 
 fn gen(node &Node) {
   match node.kind {
     .ret => {
       gen(node.left)
-      println('  pop rax
-  mov rsp, rbp
-  pop rbp
-  ret')
+      println('  pop rax')
+      println('  mov rsp, rbp')
+      println('  pop rbp')
+      println('  ret')
       return
     }
     .block => {
@@ -42,21 +42,21 @@ fn gen(node &Node) {
     }
     .ifn => {
       gen(node.cond)
-      println('  pop rax
-  cmp rax, 0
-  je .Lend${node.num}')
+      println('  pop rax')
+      println('  cmp rax, 0')
+      println('  je .Lend${node.num}')
       gen(node.left)
       println('.Lend${node.num}:')
       return
     }
     .ifelse => {
       gen(node.cond)
-      println('  pop rax
-  cmp rax, 0
-  je .Lelse${node.num}')
+      println('  pop rax')
+      println('  cmp rax, 0')
+      println('  je .Lelse${node.num}')
       gen(node.left)
-      println('  jmp .Lend${node.num}
-.Lelse${node.num}:')
+      println('  jmp .Lend${node.num}')
+      println('.Lelse${node.num}:')
       gen(node.right)
       println('.Lend${node.num}:')
       return
@@ -65,24 +65,24 @@ fn gen(node &Node) {
       gen(node.first)
       println('.Lbegin${node.num}:')
       gen(node.cond)
-      println('  pop rax
-  cmp rax, 0
-  je .Lend${node.num}')
+      println('  pop rax')
+      println('  cmp rax, 0')
+      println('  je .Lend${node.num}')
       gen(node.left)
       gen(node.right)
-      println('  jmp .Lbegin${node.num}
-.Lend${node.num}:')
+      println('  jmp .Lbegin${node.num}')
+      println('.Lend${node.num}:')
       return
     }
     .while => {
       println('.Lbegin${node.num}:')
       gen(node.cond)
-      println('  pop rax
-  cmp rax, 0
-  je .Lend${node.num}')
+      println('  pop rax')
+      println('  cmp rax, 0')
+      println('  je .Lend${node.num}')
       gen(node.left)
-      println('  jmp .Lbegin${node.num}
-.Lend${node.num}:')
+      println('  jmp .Lbegin${node.num}')
+      println('.Lend${node.num}:')
       return
     }
     .num => {
@@ -91,19 +91,24 @@ fn gen(node &Node) {
     }
     .lvar => {
       gen_lval(node)
-      println('  pop rax
-  mov rax, [rax]
-  push rax')
+      println('  pop rax')
+      println('  mov rax, [rax]')
+      println('  push rax')
       return
     }
     .assign => {
       gen_lval(node.left)
       gen(node.right)
 
-      println('  pop rdi
-  pop rax
-  mov [rax], rdi
-  push rdi')
+      println('  pop rdi')
+      println('  pop rax')
+      println('  mov [rax], rdi')
+      println('  push rdi')
+      return
+    }
+    .call => {
+      println('  call ${node.name}')
+      println('  push rax')
       return
     }
   }
@@ -156,12 +161,12 @@ fn main(){
     &Lvar(parser.locals.last()).offset
   }
 
-  println('.intel_syntax noprefix
-.global main
-main:
-  push rbp
-  mov rbp, rsp
-  sub rsp, $offset')
+  println('.intel_syntax noprefix')
+  println('.global main')
+  println('main:')
+  println('  push rbp')
+  println('  mov rbp, rsp')
+  println('  sub rsp, $offset')
 
   for node in parser.code {
     code := &Node(node)
@@ -169,7 +174,7 @@ main:
     println('  pop rax')
   }
 
-  println('  mov rsp, rbp
-  pop rbp
-  ret')
+  println('  mov rsp, rbp')
+  println('  pop rbp')
+  println('  ret')
 }

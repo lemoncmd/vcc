@@ -27,6 +27,7 @@ enum Nodekind {
   forn
   while
   block
+  call
 }
 
 struct Node {
@@ -37,6 +38,7 @@ struct Node {
   right &Node
   num int
   offset int
+  name string
 mut:
   code []voidptr
 }
@@ -129,8 +131,6 @@ fn (p Parser) new_node_with_all(kind Nodekind, first, cond, left, right &Node, n
 fn (p Parser) new_node_num(num int) &Node {
   node := &Node{
     kind:Nodekind.num
-    left:0
-    right:0
     num:num
     offset:0
   }
@@ -140,10 +140,18 @@ fn (p Parser) new_node_num(num int) &Node {
 fn (p Parser) new_node_lvar(offset int) &Node {
   node := &Node{
     kind:Nodekind.lvar
-    left:0
-    right:0
     num:0
     offset:offset
+  }
+  return node
+}
+
+fn (p Parser) new_node_str(kind Nodekind, name string) &Node {
+  node := &Node{
+    kind:kind
+    num:0
+    offset:0
+    name:name
   }
   return node
 }
@@ -335,6 +343,11 @@ fn (p mut Parser) primary() &Node {
   }
   name := p.consume_ident() or {
     return p.new_node_num(p.expect_number())
+  }
+
+  if p.consume('(') {
+    p.expect(')')
+    return p.new_node_str(.call, name)
   }
 
   lvar := p.find_lvar(name) or {
