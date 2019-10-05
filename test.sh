@@ -61,5 +61,7 @@ try 21 'main(){return foo();}'
 try 42 'main(){foo=2;return foo()*foo;}'
 try 55 'main(){return foo()*bar(2,3)-50;}'
 try 48 'main(){return hoge()+fuga();}hoge(){return 32;}fuga(){hoge=16;return hoge;}'
+try 21 'main(){return fib(7);}fib(n){if(n>1)return fib(n-1)+fib(n-2);else return 1;}'
+try 23 'main(){return hoge(4,5);}hoge(n,m){if(n>m)return 12;return 23;}'
 
 echo OK

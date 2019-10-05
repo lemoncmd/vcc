@@ -45,6 +45,12 @@ fn main(){
     println('  mov rbp, rsp')
     println('  sub rsp, $offset')
 
+    mut fnargs := func.args
+    for i in Regs.left(func.num) {
+      println('  mov [rbp-${fnargs.left.offset}], $i')
+      fnargs = fnargs.right
+    }
+
     parser.gen(func.content)
 
     println('.Lreturn${func.name}:')

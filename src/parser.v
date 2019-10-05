@@ -29,13 +29,14 @@ enum Nodekind {
   block
   call
   args
+  fnargs
 }
 
 struct Function {
-  args &Node
-  num int
   name string
 mut:
+  num int
+  args &Node
   content &Node
   locals []voidptr // []&Lvar
 }
@@ -55,6 +56,7 @@ mut:
 
 struct Lvar {
   name string
+mut:
   offset int
 }
 
@@ -75,13 +77,13 @@ fn (p mut Parser) consume(op string) bool {
   return true
 }
 
-fn (p mut Parser) consume_ident() ?string {
+fn (p mut Parser) consume_ident() (bool, string) {
   token := p.tokens[p.pos]
   if token.kind == .ident {
     p.pos++
-    return token.str
+    return true, token.str
   }
-  return none
+  return false, ''
 }
 
 fn (p mut Parser) expect(op string) {
@@ -176,11 +178,9 @@ fn (p Parser) new_node_str(kind Nodekind, num int, name string, args &Node) &Nod
   return node
 }
 
-fn (p Parser) new_func(name string, num int, args &Node) &Function {
+fn (p Parser) new_func(name string) &Function {
   func := &Function{
     name: name
-    num: num
-    args: args
   }
   return func
 }
@@ -193,14 +193,14 @@ fn (p Parser) new_lvar(name string, offset int) &Lvar {
   return lvar
 }
 
-fn (p Parser) find_lvar(name string) ?voidptr {
+fn (p Parser) find_lvar(name string) (bool, &Lvar) {
   for i in p.curfn.locals {
     lvar := &Lvar(i)
     if lvar.name == name {
-      return i
+      return true, lvar
     }
   }
-  return none
+  return false, &Lvar{}
 }
 
 fn (p mut Parser) program() {
@@ -209,12 +209,46 @@ fn (p mut Parser) program() {
   }
 }
 
+fn (p mut Parser) fnargs() (&Node, int) {
+  name := p.expect_ident()
+  mut lvar := p.new_lvar(name, 0)
+  is_lvar, _ := p.find_lvar(name)
+  if is_lvar {
+    parse_err('Doubled arguments in function')
+  }
+
+  mut offset := if p.curfn.locals.len == 0 {
+    0
+  } else {
+    &Lvar(p.curfn.locals.last()).offset
+  }
+  offset += 8
+  lvar.offset = offset
+  p.curfn.locals << voidptr(lvar)
+  lvar_node := p.new_node_lvar(lvar.offset)
+
+  if p.consume(',') {
+    args, num := p.fnargs()
+    return p.new_node(.fnargs, lvar_node, args), num+1
+  }
+  return p.new_node(.fnargs, lvar_node, &Node{}), 1
+}
+
 fn (p mut Parser) function() &Function {
   name := p.expect_ident()
-  p.expect('(')
-  p.expect(')')
-  mut func := p.new_func(name, 0, &Node{})
+  mut func := p.new_func(name)
   p.curfn = func
+  p.expect('(')
+  mut num := 0
+  mut args := &Node{}
+  if !p.consume(')') {
+    _args, _num := p.fnargs()
+    args = _args
+    num = _num
+    p.expect(')')
+  }
+  func.args = args
+  func.num = num
   func.content = p.block()
   return func
 }
@@ -389,7 +423,8 @@ fn (p mut Parser) primary() &Node {
     p.expect(')')
     return node
   }
-  name := p.consume_ident() or {
+  is_ident, name := p.consume_ident()
+  if !is_ident {
     return p.new_node_num(p.expect_number())
   }
 
@@ -403,18 +438,19 @@ fn (p mut Parser) primary() &Node {
     }
   }
 
-  lvar := p.find_lvar(name) or {
+  is_lvar, lvar := p.find_lvar(name)
+  if !is_lvar {
     mut offset := if p.curfn.locals.len == 0 {
       0
     } else {
       &Lvar(p.curfn.locals.last()).offset
     }
     offset += 8
-    lvar := p.new_lvar(name, offset)
-    p.curfn.locals << voidptr(lvar)
-    node := p.new_node_lvar(lvar.offset)
+    nlvar := p.new_lvar(name, offset)
+    p.curfn.locals << voidptr(nlvar)
+    node := p.new_node_lvar(nlvar.offset)
     return node
   }
-  return p.new_node_lvar(&Lvar(lvar).offset)
+  return p.new_node_lvar(lvar.offset)
 }
 
