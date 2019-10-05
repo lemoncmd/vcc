@@ -27,26 +27,29 @@ fn main(){
   }
   parser.program()
 
-  offset := if parser.locals.len == 0 {
-    0
-  } else {
-    &Lvar(parser.locals.last()).offset
-  }
-
   println('.intel_syntax noprefix')
-  println('.global main')
-  println('main:')
-  println('  push rbp')
-  println('  mov rbp, rsp')
-  println('  sub rsp, $offset')
 
-  for node in parser.code {
-    code := &Node(node)
-    parser.gen(code)
-    println('  pop rax')
+  for _func in parser.code {
+    func := &Function(_func)
+    offset := if func.locals.len == 0 {
+      0
+    } else {
+      &Lvar(func.locals.last()).offset
+    }
+
+    parser.curfn = func
+
+    println('.global ${func.name}')
+    println('${func.name}:')
+    println('  push rbp')
+    println('  mov rbp, rsp')
+    println('  sub rsp, $offset')
+
+    parser.gen(func.content)
+
+    println('.Lreturn${func.name}:')
+    println('  mov rsp, rbp')
+    println('  pop rbp')
+    println('  ret')
   }
-
-  println('  mov rsp, rbp')
-  println('  pop rbp')
-  println('  ret')
 }

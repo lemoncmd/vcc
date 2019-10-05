@@ -4,9 +4,9 @@ struct Parser {
   tokens []Tok
 mut:
   pos int
-  locals []voidptr // []&Lvar
-  code []voidptr // []&Node
+  code []voidptr // []&Function
   ifnum int
+  curfn &Function
 }
 
 enum Nodekind {
@@ -29,6 +29,15 @@ enum Nodekind {
   block
   call
   args
+}
+
+struct Function {
+  args &Node
+  num int
+  name string
+mut:
+  content &Node
+  locals []voidptr // []&Lvar
 }
 
 struct Node {
@@ -91,6 +100,15 @@ fn (p mut Parser) expect_number() int {
   }
   p.pos++
   return token.str.int()
+}
+
+fn (p mut Parser) expect_ident() string {
+  token := p.tokens[p.pos]
+  if token.kind != .ident {
+    unexp_err(token, 'Expected ident')
+  }
+  p.pos++
+  return token.str
 }
 
 fn (p Parser) new_node(kind Nodekind, left, right &Node) &Node {
@@ -158,6 +176,15 @@ fn (p Parser) new_node_str(kind Nodekind, num int, name string, args &Node) &Nod
   return node
 }
 
+fn (p Parser) new_func(name string, num int, args &Node) &Function {
+  func := &Function{
+    name: name
+    num: num
+    args: args
+  }
+  return func
+}
+
 fn (p Parser) new_lvar(name string, offset int) &Lvar {
   lvar := &Lvar{
     name:name
@@ -167,7 +194,7 @@ fn (p Parser) new_lvar(name string, offset int) &Lvar {
 }
 
 fn (p Parser) find_lvar(name string) ?voidptr {
-  for i in p.locals {
+  for i in p.curfn.locals {
     lvar := &Lvar(i)
     if lvar.name == name {
       return i
@@ -178,8 +205,18 @@ fn (p Parser) find_lvar(name string) ?voidptr {
 
 fn (p mut Parser) program() {
   for p.tokens[p.pos].kind != .eof {
-    p.code << voidptr(p.stmt())
+    p.code << voidptr(p.function())
   }
+}
+
+fn (p mut Parser) function() &Function {
+  name := p.expect_ident()
+  p.expect('(')
+  p.expect(')')
+  mut func := p.new_func(name, 0, &Node{})
+  p.curfn = func
+  func.content = p.block()
+  return func
 }
 
 fn (p mut Parser) stmt() &Node {
@@ -367,14 +404,14 @@ fn (p mut Parser) primary() &Node {
   }
 
   lvar := p.find_lvar(name) or {
-    mut offset := if p.locals.len == 0 {
+    mut offset := if p.curfn.locals.len == 0 {
       0
     } else {
-      &Lvar(p.locals.last()).offset
+      &Lvar(p.curfn.locals.last()).offset
     }
     offset += 8
     lvar := p.new_lvar(name, offset)
-    p.locals << voidptr(lvar)
+    p.curfn.locals << voidptr(lvar)
     node := p.new_node_lvar(lvar.offset)
     return node
   }
