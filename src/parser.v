@@ -212,6 +212,7 @@ fn (p mut Parser) program() {
 }
 
 fn (p mut Parser) fnargs() (&Node, int) {
+  p.expect('int')
   name := p.expect_ident()
   mut lvar := p.new_lvar(name, 0)
   is_lvar, _ := p.find_lvar(name)
@@ -237,6 +238,7 @@ fn (p mut Parser) fnargs() (&Node, int) {
 }
 
 fn (p mut Parser) function() &Function {
+  p.expect('int')
   name := p.expect_ident()
   mut func := p.new_func(name)
   p.curfn = func

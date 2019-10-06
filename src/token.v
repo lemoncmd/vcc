@@ -38,7 +38,7 @@ fn tokenize(p string) []Tok {
       continue
     }
 
-    if pos + 5 < p.len && p.substr(pos, pos+6) == 'return' && 
+    if pos + 5 < p.len && p.substr(pos, pos+6) == 'return' &&
        !p[pos+6].is_letter() && !p[pos+6].is_digit() && p[pos+6] != `_` {
       tokens << new_token(.reserved, 'return', line, lpos)
       pos += 6
@@ -46,7 +46,7 @@ fn tokenize(p string) []Tok {
       continue
     }
 
-    if pos + 1 < p.len && p.substr(pos, pos+2) == 'if' && 
+    if pos + 1 < p.len && p.substr(pos, pos+2) == 'if' &&
        !p[pos+2].is_letter() && !p[pos+2].is_digit() && p[pos+2] != `_` {
       tokens << new_token(.reserved, 'if', line, lpos)
       pos += 2
@@ -54,7 +54,7 @@ fn tokenize(p string) []Tok {
       continue
     }
 
-    if pos + 3 < p.len && p.substr(pos, pos+4) == 'else' && 
+    if pos + 3 < p.len && p.substr(pos, pos+4) == 'else' &&
        !p[pos+4].is_letter() && !p[pos+4].is_digit() && p[pos+4] != `_` {
       tokens << new_token(.reserved, 'else', line, lpos)
       pos += 4
@@ -73,6 +73,14 @@ fn tokenize(p string) []Tok {
     if pos + 2 < p.len && p.substr(pos, pos+3) == 'for' &&
        !p[pos+3].is_letter() && !p[pos+3].is_digit() && p[pos+3] != `_` {
       tokens << new_token(.reserved, 'for', line, lpos)
+      pos += 3
+      lpos += 3
+      continue
+    }
+
+    if pos + 2 < p.len && p.substr(pos, pos+3) == 'int' &&
+       !p[pos+3].is_letter() && !p[pos+3].is_digit() && p[pos+3] != `_` {
+      tokens << new_token(.reserved, 'int', line, lpos)
       pos += 3
       lpos += 3
       continue
