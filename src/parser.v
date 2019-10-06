@@ -30,6 +30,8 @@ enum Nodekind {
   call
   args
   fnargs
+  deref
+  addr
 }
 
 struct Function {
@@ -400,7 +402,11 @@ fn (p mut Parser) mul() &Node {
 }
 
 fn (p mut Parser) unary() &Node {
-  if p.consume('+') {
+  if p.consume('*') {
+    return p.new_node(.deref, p.unary(), &Node{})
+  } else if p.consume('&') {
+    return p.new_node(.addr, p.unary(), &Node{})
+  } else if p.consume('+') {
     return p.primary()
   } else if p.consume('-') {
     return p.new_node(.sub, p.new_node_num(0), p.primary())
