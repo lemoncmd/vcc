@@ -4,9 +4,14 @@ const (
   Regs = ['rdi', 'rsi', 'rdx', 'rcx', 'r8', 'r9']
 )
 
-fn (p Parser) gen_lval(node &Node) {
-  if node.kind != .lvar {
-    parse_err('Assignment Error: left value is not variable')
+fn (p mut Parser) gen_lval(node &Node) {
+  if node.kind != .lvar && node.kind != .deref {
+    parse_err('Assignment Error: left value is invalid')
+  }
+
+  if node.kind == .deref {
+    p.gen(node.left)
+    return
   }
 
   println('  mov rax, rbp')
