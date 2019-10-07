@@ -13,7 +13,7 @@ enum Typekind {
 fn (typ Type) size() int {
   kind := typ.kind.last()
   size := if kind == .int {
-    4
+    8
   } else {
     8
   }
