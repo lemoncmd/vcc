@@ -63,7 +63,8 @@ try 55 'int main(){return foo()*bar(2,3)-50;}'
 try 48 'int main(){return hoge()+fuga();}int hoge(){return 32;}int fuga(){int hoge;hoge=16;return hoge;}'
 try 21 'int main(){return fib(7);}int fib(int n){if(n>1)return fib(n-1)+fib(n-2);else return 1;}'
 try 23 'int main(){return hoge(4,5);}int hoge(int n,int m){if(n>m)return 12;return 23;}'
-try 3  'int main(){int x;int y;x=3;y=&x;return *y;}'
-try 3  'int main(){int x;int y;int z;x=3;y=5;z=&y+8;return *z;}'
+try 3  'int main(){int x;int *y;x=3;y=&x;return *y;}'
+try 3  'int main(){int x;int y;int *z;x=3;y=5;z=&y+8;return *z;}'
+try 3  'int main(){int x;int *y;y=&x;*y=3;return x;}'
 
 echo OK

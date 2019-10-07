@@ -90,13 +90,19 @@ fn (p mut Parser) consume_ident() (bool, string) {
 }
 
 fn (p mut Parser) consume_type() (bool, &Type) {
-  /*mut*/ token := p.tokens[p.pos]
+  mut token := p.tokens[p.pos]
   mut typ := &Type{}
   if token.kind != .reserved || token.str != 'int' {
     return false, typ
   }
   typ.kind << Typekind.int
   p.pos++
+  token = p.tokens[p.pos]
+  for token.kind == .reserved && token.str == '*' {
+    typ.kind << Typekind.ptr
+    p.pos++
+    token = p.tokens[p.pos]
+  }
   return true, typ
 }
 
@@ -241,7 +247,7 @@ fn (p mut Parser) fnargs() (&Node, int) {
   } else {
     &Lvar(p.curfn.locals.last()).offset
   }
-  offset += 8
+  offset += typ.size()
   lvar.offset = offset
   p.curfn.locals << voidptr(lvar)
   lvar_node := p.new_node_lvar(lvar.offset)
@@ -280,7 +286,7 @@ fn (p mut Parser) declare(typ &Type) {
   } else {
     &Lvar(p.curfn.locals.last()).offset
   }
-  offset += 8
+  offset += typ.size()
   nlvar := p.new_lvar(name, typ, offset)
   p.curfn.locals << voidptr(nlvar)
   p.expect(';')
