@@ -58,6 +58,7 @@ mut:
 
 struct Lvar {
   name string
+  typ &Type
 mut:
   offset int
 }
@@ -86,6 +87,17 @@ fn (p mut Parser) consume_ident() (bool, string) {
     return true, token.str
   }
   return false, ''
+}
+
+fn (p mut Parser) consume_type() (bool, &Type) {
+  /*mut*/ token := p.tokens[p.pos]
+  mut typ := &Type{}
+  if token.kind != .reserved || token.str != 'int' {
+    return false, typ
+  }
+  typ.kind << Typekind.int
+  p.pos++
+  return true, typ
 }
 
 fn (p mut Parser) expect(op string) {
@@ -187,9 +199,10 @@ fn (p Parser) new_func(name string) &Function {
   return func
 }
 
-fn (p Parser) new_lvar(name string, offset int) &Lvar {
+fn (p Parser) new_lvar(name string, typ &Type, offset int) &Lvar {
   lvar := &Lvar{
     name:name
+    typ:typ
     offset:offset
   }
   return lvar
@@ -212,12 +225,15 @@ fn (p mut Parser) program() {
 }
 
 fn (p mut Parser) fnargs() (&Node, int) {
-  p.expect('int')
+  is_typ, typ := p.consume_type()
+  if !is_typ {
+    parse_err('Expected type')
+  }
   name := p.expect_ident()
-  mut lvar := p.new_lvar(name, 0)
+  mut lvar := p.new_lvar(name, typ, 0)
   is_lvar, _ := p.find_lvar(name)
   if is_lvar {
-    parse_err('Doubled arguments in function')
+    parse_err('$name is already declared')
   }
 
   mut offset := if p.curfn.locals.len == 0 {
@@ -255,6 +271,19 @@ fn (p mut Parser) function() &Function {
   func.num = num
   func.content = p.block()
   return func
+}
+
+fn (p mut Parser) declare(typ &Type) {
+  name := p.expect_ident()
+  mut offset := if p.curfn.locals.len == 0 {
+    0
+  } else {
+    &Lvar(p.curfn.locals.last()).offset
+  }
+  offset += 8
+  nlvar := p.new_lvar(name, typ, offset)
+  p.curfn.locals << voidptr(nlvar)
+  p.expect(';')
 }
 
 fn (p mut Parser) stmt() &Node {
@@ -321,7 +350,12 @@ fn (p mut Parser) block() &Node {
   mut node := p.new_node(.block, &Node{}, &Node{})
   p.expect('{')
   for !p.consume('}') {
-    node.code << voidptr(p.stmt())
+    is_dec, typ := p.consume_type()
+    if is_dec {
+      p.declare(typ)
+    } else {
+      node.code << voidptr(p.stmt())
+    }
   }
   return node
 }
@@ -448,16 +482,7 @@ fn (p mut Parser) primary() &Node {
 
   is_lvar, lvar := p.find_lvar(name)
   if !is_lvar {
-    mut offset := if p.curfn.locals.len == 0 {
-      0
-    } else {
-      &Lvar(p.curfn.locals.last()).offset
-    }
-    offset += 8
-    nlvar := p.new_lvar(name, offset)
-    p.curfn.locals << voidptr(nlvar)
-    node := p.new_node_lvar(nlvar.offset)
-    return node
+    parse_err('$name is not declared yet.')
   }
   return p.new_node_lvar(lvar.offset)
 }
