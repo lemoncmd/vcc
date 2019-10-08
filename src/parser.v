@@ -10,6 +10,7 @@ mut:
 }
 
 enum Nodekind {
+  nothing
   assign
   add
   sub
@@ -45,6 +46,7 @@ mut:
 
 struct Node {
   kind Nodekind
+mut:
   cond &Node
   first &Node
   left &Node
@@ -52,8 +54,8 @@ struct Node {
   num int
   offset int
   name string
-mut:
   code []voidptr
+  typ &Type
 }
 
 struct Lvar {
@@ -178,11 +180,12 @@ fn (p Parser) new_node_num(num int) &Node {
   return node
 }
 
-fn (p Parser) new_node_lvar(offset int) &Node {
+fn (p Parser) new_node_lvar(offset int, typ &Type) &Node {
   node := &Node{
     kind:Nodekind.lvar
     num:0
     offset:offset
+    typ:typ
   }
   return node
 }
@@ -250,7 +253,7 @@ fn (p mut Parser) fnargs() (&Node, int) {
   offset += typ.size()
   lvar.offset = offset
   p.curfn.locals << voidptr(lvar)
-  lvar_node := p.new_node_lvar(lvar.offset)
+  lvar_node := p.new_node_lvar(lvar.offset, typ)
 
   if p.consume(',') {
     args, num := p.fnargs()
@@ -349,6 +352,7 @@ fn (p mut Parser) stmt() &Node {
     node = p.expr()
     p.expect(';')
   }
+  node.add_type()
   return node
 }
 
@@ -418,9 +422,53 @@ fn (p mut Parser) add() &Node {
 
   for {
     if p.consume('+') {
-      node = p.new_node(.add, node, p.mul())
+      mut right := p.mul()
+      node.add_type()
+      right.add_type()
+      mut typ := &Type{}
+      if node.typ.is_ptr() && right.typ.is_int() {
+        typ.kind = node.typ.kind.clone()
+        typ.kind.delete(typ.kind.len-1)
+        num := p.new_node_num(typ.size())
+        typ.kind = node.typ.kind.clone()
+        right = p.new_node(.mul, right, num)
+      } else if node.typ.is_int() && right.typ.is_ptr() {
+        typ.kind = right.typ.kind.clone()
+        typ.kind.delete(typ.kind.len-1)
+        num := p.new_node_num(typ.size())
+        typ.kind = node.typ.kind.clone()
+        node = p.new_node(.mul, node, num)
+      } else if node.typ.is_int() && right.typ.is_int() {
+        typ.kind << Typekind.int
+      } else {
+        parse_err('Operator + cannot add two pointers')
+      }
+      node = p.new_node(.add, node, right)
+      node.typ = typ
     } else if p.consume('-') {
-      node = p.new_node(.sub, node, p.mul())
+      mut right := p.mul()
+      node.add_type()
+      right.add_type()
+      mut typ := &Type{}
+      if node.typ.is_ptr() && right.typ.is_int() {
+        typ.kind = node.typ.kind.clone()
+        typ.kind.delete(typ.kind.len-1)
+        num := p.new_node_num(typ.size())
+        typ.kind = node.typ.kind.clone()
+        right = p.new_node(.mul, right, num)
+      } else if node.typ.is_ptr() && right.typ.is_ptr() {
+        typ.kind = node.typ.kind.clone()
+        typ.kind.delete(typ.kind.len-1)
+        num := p.new_node_num(typ.size())
+        typ.kind = [Typekind.int]
+        node = p.new_node(.div, node, num)
+      } else if node.typ.is_int() && right.typ.is_int() {
+        typ.kind << Typekind.int
+      } else {
+        parse_err('Operator - cannot sub pointers from int')
+      }
+      node = p.new_node(.sub, node, right)
+      node.typ = typ
     } else {
       return node
     }
@@ -490,6 +538,6 @@ fn (p mut Parser) primary() &Node {
   if !is_lvar {
     parse_err('$name is not declared yet.')
   }
-  return p.new_node_lvar(lvar.offset)
+  return p.new_node_lvar(lvar.offset, lvar.typ)
 }
 
