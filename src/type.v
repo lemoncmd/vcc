@@ -32,10 +32,10 @@ fn (node mut Node) add_type() {
   if node.kind == .nothing || node.typ != 0 {
     return
   }
-  node.cond.add_type()
-  node.first.add_type()
-  node.left.add_type()
-  node.right.add_type()
+  if node.cond != 0 {node.cond.add_type()}
+  if node.first != 0 {node.first.add_type()}
+  if node.left != 0 {node.left.add_type()}
+  if node.right != 0 {node.right.add_type()}
 
   for i in node.code {
     mut no := &Node(i)
@@ -81,10 +81,6 @@ fn (node mut Node) add_type() {
       node.typ = typ
     }
     .num    => {
-      typ.kind << Typekind.int
-      node.typ = typ
-    }
-    .lvar   => {
       typ.kind << Typekind.int
       node.typ = typ
     }
