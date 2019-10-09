@@ -3,12 +3,14 @@ module main
 struct Type {
 mut:
   kind []Typekind
+  suffix []int
 }
 
 enum Typekind {
   int
   char
   ptr
+  ary
 }
 
 fn (typ Type) size() int {
@@ -17,9 +19,21 @@ fn (typ Type) size() int {
     .char => {1}
     .int => {4}
     .ptr => {8}
+    .ary => {typ.suffix[0] * typ.reduce().size()}
     else => {8}
   }
   return size
+}
+
+fn (typ Type) reduce() &Type {
+  mut typ2 := &Type{}
+  typ2.kind = typ.kind.clone()
+  typ2.suffix = typ.suffix.clone()
+  if typ2.kind.last() == .ary {
+    typ2.suffix.delete(typ2.suffix.len-1)
+  }
+  typ2.kind.delete(typ2.kind.len-1)
+  return typ2
 }
 
 fn (typ Type) is_int() bool {
@@ -27,7 +41,7 @@ fn (typ Type) is_int() bool {
 }
 
 fn (typ Type) is_ptr() bool {
-  return typ.kind.last() == .ptr
+  return typ.kind.last() == .ptr || typ.kind.last() == .ary
 }
 
 fn (node mut Node) add_type() {
@@ -97,7 +111,8 @@ fn (node mut Node) add_type() {
     .deref  => {
       if node.left.typ.is_ptr() {
         typ.kind = node.left.typ.kind.clone()
-        typ.kind.delete(typ.kind.len-1)
+        typ.suffix = node.left.typ.suffix.clone()
+        typ = typ.reduce()
       } else {
         typ.kind << Typekind.int
       }
@@ -105,6 +120,10 @@ fn (node mut Node) add_type() {
     }
     .addr   => {
       typ.kind = node.left.typ.kind.clone()
+      typ.suffix = node.left.typ.suffix.clone()
+      if typ.kind.last() == .ary {
+        typ = typ.reduce()
+      }
       typ.kind << Typekind.ptr
       node.typ = typ
     }

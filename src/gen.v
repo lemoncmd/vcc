@@ -59,7 +59,9 @@ fn (p mut Parser) gen(node &Node) {
     }
     .deref => {
       p.gen(node.left)
-      p.gen_load(node.typ)
+      if node.typ.kind.last() != .ary {
+        p.gen_load(node.typ)
+      }
       return
     }
     .block => {
@@ -121,10 +123,15 @@ fn (p mut Parser) gen(node &Node) {
     }
     .lvar => {
       p.gen_lval(node)
-      p.gen_load(node.typ)
+      if node.typ.kind.last() != .ary {
+        p.gen_load(node.typ)
+      }
       return
     }
     .assign => {
+      if node.left.typ.kind.last() == .ary {
+        parse_err('Assignment Error: array body is not assignable')
+      }
       p.gen_lval(node.left)
       p.gen(node.right)
       p.gen_store(node.typ)
