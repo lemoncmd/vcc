@@ -14,6 +14,7 @@ enum Typekind {
 fn (typ Type) size() int {
   kind := typ.kind.last()
   size := match kind {
+    .char => {1}
     .int => {4}
     .ptr => {8}
     else => {8}
@@ -86,6 +87,10 @@ fn (node mut Node) add_type() {
       node.typ = typ
     }
     .call   => {
+      typ.kind << Typekind.int
+      node.typ = typ
+    }
+    .sizof  => {
       typ.kind << Typekind.int
       node.typ = typ
     }

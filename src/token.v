@@ -46,6 +46,14 @@ fn tokenize(p string) []Tok {
       continue
     }
 
+    if pos + 5 < p.len && p.substr(pos, pos+6) == 'sizeof' &&
+       !p[pos+6].is_letter() && !p[pos+6].is_digit() && p[pos+6] != `_` {
+      tokens << new_token(.reserved, 'sizeof', line, lpos)
+      pos += 6
+      lpos += 6
+      continue
+    }
+
     if pos + 1 < p.len && p.substr(pos, pos+2) == 'if' &&
        !p[pos+2].is_letter() && !p[pos+2].is_digit() && p[pos+2] != `_` {
       tokens << new_token(.reserved, 'if', line, lpos)

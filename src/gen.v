@@ -155,6 +155,11 @@ fn (p mut Parser) gen(node &Node) {
       p.ifnum++
       return
     }
+    .sizof => {
+      size := node.left.typ.size()
+      println('  push $size')
+      return
+    }
   }
 
   p.gen(node.left)
