@@ -46,8 +46,16 @@ fn main(){
     println('  sub rsp, $offset')
 
     mut fnargs := func.args
-    for i in Regs.left(func.num) {
-      println('  mov [rbp-${fnargs.left.offset}], $i')
+    for i := 0; i < func.num; i++ {
+      reg := match fnargs.left.typ.size() {
+        4 => {Reg4[i]}
+        8 => {Regs[i]}
+        else => {'none'}
+      }
+      if reg == 'none' {
+        parse_err('Invalid type in arg of function ${func.name}')
+      }
+      println('  mov [rbp-${fnargs.left.offset}], $reg')
       fnargs = fnargs.right
     }
 

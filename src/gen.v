@@ -2,6 +2,7 @@ module main
 
 const (
   Regs = ['rdi', 'rsi', 'rdx', 'rcx', 'r8', 'r9']
+  Reg4 = ['edi', 'esi', 'edx', 'ecx', 'r8d', 'r9d']
 )
 
 fn (p mut Parser) gen_lval(node &Node) {
@@ -19,6 +20,31 @@ fn (p mut Parser) gen_lval(node &Node) {
   println('  push rax')
 }
 
+fn (p Parser) gen_load(typ &Type){
+  println('  pop rax')
+  match typ.size() {
+    1 => {println('  movsx rax, byte ptr [rax]')}
+    2 => {println('  movsx rax, word ptr [rax]')}
+    4 => {println('  movsxd rax, dword ptr [rax]')}
+    8 => {println('  mov rax, [rax]')}
+    else => {parse_err('you are loading something wrong')}
+  }
+  println('  push rax')
+}
+
+fn (p Parser) gen_store(typ &Type){
+  println('  pop rdi')
+  println('  pop rax')
+  match typ.size() {
+    1 => {println('  mov [rax], dil')}
+    2 => {println('  mov [rax], di')}
+    4 => {println('  mov [rax], edi')}
+    8 => {println('  mov [rax], rdi')}
+    else => {parse_err('you are saving something wrong')}
+  }
+  println('  push rdi')
+}
+
 fn (p mut Parser) gen(node &Node) {
   match node.kind {
     .ret => {
@@ -33,9 +59,7 @@ fn (p mut Parser) gen(node &Node) {
     }
     .deref => {
       p.gen(node.left)
-      println('  pop rax')
-      println('  mov rax, [rax]')
-      println('  push rax')
+      p.gen_load(node.typ)
       return
     }
     .block => {
@@ -97,19 +121,13 @@ fn (p mut Parser) gen(node &Node) {
     }
     .lvar => {
       p.gen_lval(node)
-      println('  pop rax')
-      println('  mov rax, [rax]')
-      println('  push rax')
+      p.gen_load(node.typ)
       return
     }
     .assign => {
       p.gen_lval(node.left)
       p.gen(node.right)
-
-      println('  pop rdi')
-      println('  pop rax')
-      println('  mov [rax], rdi')
-      println('  push rdi')
+      p.gen_store(node.typ)
       return
     }
     .call => {
