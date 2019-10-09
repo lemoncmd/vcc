@@ -19,7 +19,7 @@ fn (typ Type) size() int {
     .char => {1}
     .int => {4}
     .ptr => {8}
-    .ary => {typ.suffix[0] * typ.reduce().size()}
+    .ary => {typ.suffix.last() * typ.reduce().size()}
     else => {8}
   }
   return size

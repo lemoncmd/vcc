@@ -107,7 +107,7 @@ fn (p mut Parser) consume_type() (bool, &Type, string) {
     token = p.tokens[p.pos]
   }
   name := p.expect_ident()
-  if p.consume('[') {
+  for p.consume('[') {
     typ.kind << Typekind.ary
     typ.suffix << p.expect_number()
     p.expect(']')
