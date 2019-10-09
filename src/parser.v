@@ -508,7 +508,40 @@ fn (p mut Parser) unary() &Node {
   } else if p.consume('-') {
     return p.new_node(.sub, p.new_node_num(0), p.primary())
   }
-  return p.primary()
+  return p.postfix()
+}
+
+fn (p mut Parser) postfix() &Node {
+  mut node := p.primary()
+
+  for p.consume('[') {
+    mut right := p.expr()
+    node.add_type()
+    right.add_type()
+    mut typ := &Type{}
+    if node.typ.is_ptr() && right.typ.is_int() {
+      typ = node.typ.reduce()
+      num := p.new_node_num(typ.size())
+      typ.kind = node.typ.kind.clone()
+      typ.suffix = node.typ.suffix.clone()
+      right = p.new_node(.mul, right, num)
+    } else if node.typ.is_int() && right.typ.is_ptr() {
+      typ = right.typ.reduce()
+      num := p.new_node_num(typ.size())
+      typ.kind = node.typ.kind.clone()
+      typ.suffix = node.typ.suffix.clone()
+      node = p.new_node(.mul, node, num)
+    } else if node.typ.is_int() && right.typ.is_int() {
+      typ.kind << Typekind.int
+    } else {
+      parse_err('both body and suffix are pointers in a[b] expression')
+    }
+    node = p.new_node(.add, node, right)
+    node.typ = typ
+    node = p.new_node(.deref, node, &Node{})
+    p.expect(']')
+  }
+  return node
 }
 
 fn (p mut Parser) args() (&Node, int) {
