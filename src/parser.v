@@ -288,7 +288,7 @@ fn (p mut Parser) function() &Function {
   return func
 }
 
-fn (p mut Parser) declare(typ &Type, name string) {
+fn (p mut Parser) declare(typ &Type, name string) int {
   mut offset := if p.curfn.locals.len == 0 {
     0
   } else {
@@ -297,7 +297,7 @@ fn (p mut Parser) declare(typ &Type, name string) {
   offset += typ.size()
   nlvar := p.new_lvar(name, typ, offset)
   p.curfn.locals << voidptr(nlvar)
-  p.expect(';')
+  return offset
 }
 
 fn (p mut Parser) stmt() &Node {
@@ -367,7 +367,14 @@ fn (p mut Parser) block() &Node {
   for !p.consume('}') {
     is_dec, typ, name := p.consume_type()
     if is_dec {
-      p.declare(typ, name)
+      offset := p.declare(typ, name)
+      if p.consume('=') {
+        lvar := p.new_node_lvar(offset, typ)
+        mut assign := p.new_node(.assign, lvar, p.expr())
+        assign.add_type()
+        node.code << voidptr(assign)
+      }
+      p.expect(';')
     } else {
       node.code << voidptr(p.stmt())
     }
@@ -504,9 +511,9 @@ fn (p mut Parser) unary() &Node {
   } else if p.consume('&') {
     return p.new_node(.addr, p.unary(), &Node{})
   } else if p.consume('+') {
-    return p.primary()
+    return p.unary()
   } else if p.consume('-') {
-    return p.new_node(.sub, p.new_node_num(0), p.primary())
+    return p.new_node(.sub, p.new_node_num(0), p.unary())
   }
   return p.postfix()
 }
