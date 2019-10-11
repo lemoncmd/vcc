@@ -28,19 +28,28 @@ fn main(){
   parser.program()
 
   println('.intel_syntax noprefix')
+  println('.data')
 
-  for _func in parser.code {
-    func := &Function(_func)
+  for name, _gvar in parser.global {
+    gvar := _gvar.val
+    size := gvar.typ.size()
+    println('$name:')
+    println('  .zero $size')
+  }
+
+  println('.text')
+
+  for name, _func in parser.code {
+    func := _func.val
     offset := if func.locals.len == 0 {
       0
     } else {
       &Lvar(func.locals.last()).offset
     }
-
     parser.curfn = func
 
-    println('.global ${func.name}')
-    println('${func.name}:')
+    println('.global $name')
+    println('$name:')
     println('  push rbp')
     println('  mov rbp, rsp')
     println('  sub rsp, $offset')
@@ -53,7 +62,7 @@ fn main(){
         else => {'none'}
       }
       if reg == 'none' {
-        parse_err('Invalid type in arg of function ${func.name}')
+        parse_err('Invalid type in arg of function $name')
       }
       println('  mov [rbp-${fnargs.left.offset}], $reg')
       fnargs = fnargs.right
@@ -61,7 +70,7 @@ fn main(){
 
     parser.gen(func.content)
 
-    println('.Lreturn${func.name}:')
+    println('.Lreturn$name:')
     println('  mov rsp, rbp')
     println('  pop rbp')
     println('  ret')

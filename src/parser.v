@@ -4,9 +4,19 @@ struct Parser {
   tokens []Tok
 mut:
   pos int
-  code []voidptr // []&Function
+  code map[string]Funcwrap
   ifnum int
   curfn &Function
+  global map[string]Lvarwrap
+  offset int
+}
+
+struct Funcwrap {
+  val &Function
+}
+
+struct Lvarwrap {
+  val &Lvar
 }
 
 enum Nodekind {
@@ -22,6 +32,7 @@ enum Nodekind {
   ge
   num
   lvar
+  gvar
   ret
   ifn
   ifelse
@@ -38,6 +49,7 @@ enum Nodekind {
 
 struct Function {
   name string
+  typ &Type
 mut:
   num int
   args &Node
@@ -62,6 +74,7 @@ mut:
 struct Lvar {
   name string
   typ &Type
+  is_global bool
 mut:
   offset int
 }
@@ -190,9 +203,18 @@ fn (p Parser) new_node_num(num int) &Node {
 fn (p Parser) new_node_lvar(offset int, typ &Type) &Node {
   node := &Node{
     kind:Nodekind.lvar
-    num:0
     offset:offset
     typ:typ
+  }
+  return node
+}
+
+fn (p Parser) new_node_gvar(offset int, typ &Type, name string) &Node {
+  node := &Node{
+    kind:Nodekind.gvar
+    offset:offset
+    typ:typ
+    name:name
   }
   return node
 }
@@ -208,9 +230,10 @@ fn (p Parser) new_node_str(kind Nodekind, num int, name string, args &Node) &Nod
   return node
 }
 
-fn (p Parser) new_func(name string) &Function {
+fn (p Parser) new_func(name string, typ &Type) &Function {
   func := &Function{
     name: name
+    typ: typ
   }
   return func
 }
@@ -224,6 +247,15 @@ fn (p Parser) new_lvar(name string, typ &Type, offset int) &Lvar {
   return lvar
 }
 
+fn (p Parser) new_gvar(name string, typ &Type, offset int) &Lvar {
+  lvar := &Lvar{
+    name:name
+    typ:typ
+    is_global:true
+  }
+  return lvar
+}
+
 fn (p Parser) find_lvar(name string) (bool, &Lvar) {
   for i in p.curfn.locals {
     lvar := &Lvar(i)
@@ -231,12 +263,38 @@ fn (p Parser) find_lvar(name string) (bool, &Lvar) {
       return true, lvar
     }
   }
+  if name in p.global {
+    return true, p.global[name].val
+  }
   return false, &Lvar{}
 }
 
 fn (p mut Parser) program() {
   for p.tokens[p.pos].kind != .eof {
-    p.code << voidptr(p.function())
+    p.top()
+  }
+}
+
+fn (p mut Parser) top() {
+  p.expect('int')
+  mut typ := &Type{}
+  typ.kind << Typekind.int
+  for p.consume('*') {
+    typ.kind << Typekind.ptr
+  }
+  name := p.expect_ident()
+  if p.consume('(') {
+    p.code[name] = Funcwrap{p.function(name, typ)}
+  } else {
+    for p.consume('[') {
+      num := p.expect_number()
+      typ.kind << Typekind.ary
+      typ.suffix << num
+      p.expect(']')
+    }
+    p.expect(';')
+    p.global[name] = Lvarwrap{p.new_gvar(name, typ, p.offset)}
+    p.offset += typ.size()
   }
 }
 
@@ -246,8 +304,8 @@ fn (p mut Parser) fnargs() (&Node, int) {
     parse_err('Expected type')
   }
   mut lvar := p.new_lvar(name, typ, 0)
-  is_lvar, _ := p.find_lvar(name)
-  if is_lvar {
+  is_lvar, glvar := p.find_lvar(name)
+  if is_lvar && !(&Lvar(glvar).is_global) {
     parse_err('$name is already declared')
   }
 
@@ -268,12 +326,9 @@ fn (p mut Parser) fnargs() (&Node, int) {
   return p.new_node(.fnargs, lvar_node, &Node{}), 1
 }
 
-fn (p mut Parser) function() &Function {
-  p.expect('int')
-  name := p.expect_ident()
-  mut func := p.new_func(name)
+fn (p mut Parser) function(name string, typ &Type) &Function {
+  mut func := p.new_func(name, typ)
   p.curfn = func
-  p.expect('(')
   mut num := 0
   mut args := &Node{}
   if !p.consume(')') {
@@ -474,6 +529,7 @@ fn (p mut Parser) add() &Node {
         typ.kind = [Typekind.int]
         typ.suffix = []int
         node = p.new_node(.div, node, num)
+        right = p.new_node(.div, right, num)
       } else if node.typ.is_int() && right.typ.is_int() {
         typ.kind << Typekind.int
       } else {
@@ -585,6 +641,11 @@ fn (p mut Parser) primary() &Node {
   if !is_lvar {
     parse_err('$name is not declared yet.')
   }
-  return p.new_node_lvar(lvar.offset, lvar.typ)
+  node := if lvar.is_global {
+    p.new_node_gvar(lvar.offset, lvar.typ, name)
+  } else {
+    p.new_node_lvar(lvar.offset, lvar.typ)
+  }
+  return node
 }
 

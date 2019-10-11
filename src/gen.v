@@ -20,6 +20,19 @@ fn (p mut Parser) gen_lval(node &Node) {
   println('  push rax')
 }
 
+fn (p mut Parser) gen_gval(node &Node) {
+  if node.kind != .gvar && node.kind != .deref {
+    parse_err('Assignment Error: left value is invalid')
+  }
+
+  if node.kind == .deref {
+    p.gen(node.left)
+    return
+  }
+
+  println('  push offset ${node.name}')
+}
+
 fn (p Parser) gen_load(typ &Type){
   println('  pop rax')
   match typ.size() {
@@ -54,7 +67,11 @@ fn (p mut Parser) gen(node &Node) {
       return
     }
     .addr => {
-      p.gen_lval(node.left)
+      if node.left.kind == .lvar {
+        p.gen_lval(node.left)
+      } else {
+        p.gen_gval(node.left)
+      }
       return
     }
     .deref => {
@@ -68,7 +85,7 @@ fn (p mut Parser) gen(node &Node) {
       for i in node.code {
         code := &Node(i)
         p.gen(code)
-        println('  pop rax')
+        //println('  pop rax')
       }
       return
     }
@@ -128,11 +145,22 @@ fn (p mut Parser) gen(node &Node) {
       }
       return
     }
+    .gvar => {
+      p.gen_gval(node)
+      if node.typ.kind.last() != .ary {
+        p.gen_load(node.typ)
+      }
+      return 
+    }
     .assign => {
       if node.left.typ.kind.last() == .ary {
         parse_err('Assignment Error: array body is not assignable')
       }
-      p.gen_lval(node.left)
+      if node.left.kind == .lvar {
+        p.gen_lval(node.left)
+      } else {
+        p.gen_gval(node.left)
+      }
       p.gen(node.right)
       p.gen_store(node.typ)
       return

@@ -94,7 +94,7 @@ fn tokenize(p string) []Tok {
       continue
     }
 
-    if pos + 1 < p.len && p.substr(pos, pos+2) in ['==', '!=', '>=', '<='] {
+    if pos + 1 < p.len && (p.substr(pos, pos+2) in ['==', '!=', '>=', '<=']) {
       tokens << new_token(.reserved, p.substr(pos, pos+2), line, lpos)
       pos += 2
       lpos += 2
