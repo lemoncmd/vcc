@@ -49,6 +49,32 @@ fn tokenize(p string) []Tok {
       continue
     }
 
+    if pos + 2 <= p.len && p.substr(pos, pos + 2) == '//' {
+      for p[pos] != `\n` || pos < p.len {
+        pos++
+      }
+      pos++
+      line++
+      lpos = 0
+      continue
+    }
+
+    if pos + 2 <= p.len && p.substr(pos, pos + 2) == '/*' {
+      pos += 3
+      lpos += 3
+      for pos < p.len && !(p[pos-1] == `*` && p[pos] == `/`) {
+        pos++
+        lpos++
+        if p[pos] == `\n` {
+          line++
+          lpos = 0
+        }
+      }
+      pos++
+      line++
+      continue
+    }
+
     if is_token_string(p, 'return', pos) {
       tokens << new_token(.reserved, 'return', line, lpos)
       pos += 6
