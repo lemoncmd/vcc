@@ -37,6 +37,14 @@ fn main(){
     println('  .zero $size')
   }
 
+  for i, _node in parser.strs {
+    node := _node.val
+    offset := node.offset
+    content := node.name
+    println('.L.C.$offset:')
+    println('  .string "$content"')
+  }
+
   println('.text')
 
   for name, _func in parser.code {

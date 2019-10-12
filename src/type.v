@@ -148,5 +148,11 @@ fn (node mut Node) add_type() {
       typ.kind << Typekind.ptr
       node.typ = typ
     }
+    .string => {
+      typ.kind << Typekind.char
+      typ.kind << Typekind.ary
+      typ.suffix << node.name.len+1
+      node.typ = typ
+    }
   }
 }

@@ -12,6 +12,7 @@ enum Token {
   ident
   reserved
   num
+  string
 }
 
 fn new_token(token Token, s string, line, pos int) Tok {
@@ -127,6 +128,24 @@ fn tokenize(p string) []Tok {
 
     if p[pos] in [`+`, `-`, `*`, `/`, `(`, `)`, `<`, `>`, `;`, `=`, `{`, `}`, `,`, `&`, `[`, `]`] {
       tokens << new_token(.reserved, p[pos++].str(), line, lpos)
+      lpos++
+      continue
+    }
+
+    if p[pos] == `"` {
+      pos++
+      lpos++
+      start_pos := pos
+      for p[pos-1] == `\`` || p[pos] != `"` {
+        pos++
+        lpos++
+        if p[pos] == `\n` {
+          line++
+          lpos=0
+        }
+      }
+      tokens << new_token(.string, p.substr(start_pos, pos).replace('\\\n', ''), line, lpos)
+      pos++
       lpos++
       continue
     }

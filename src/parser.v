@@ -9,6 +9,8 @@ mut:
   curfn &Function
   global map[string]Lvarwrap
   offset int
+  str_offset int
+  strs []Nodewrap
 }
 
 struct Funcwrap {
@@ -17,6 +19,10 @@ struct Funcwrap {
 
 struct Lvarwrap {
   val &Lvar
+}
+
+struct Nodewrap {
+  val &Node
 }
 
 enum Nodekind {
@@ -31,6 +37,7 @@ enum Nodekind {
   gt
   ge
   num
+  string
   lvar
   gvar
   ret
@@ -99,6 +106,15 @@ fn (p mut Parser) consume(op string) bool {
 fn (p mut Parser) consume_ident() (bool, string) {
   token := p.tokens[p.pos]
   if token.kind == .ident {
+    p.pos++
+    return true, token.str
+  }
+  return false, ''
+}
+
+fn (p mut Parser) consume_string() (bool, string) {
+  token := p.tokens[p.pos]
+  if token.kind == .string {
     p.pos++
     return true, token.str
   }
@@ -228,6 +244,15 @@ fn (p Parser) new_node_num(num int) &Node {
   return node
 }
 
+fn (p Parser) new_node_string(str string, id int) &Node {
+  node := &Node{
+    kind:Nodekind.string
+    offset:id
+    name:str
+  }
+  return node
+}
+
 fn (p Parser) new_node_lvar(offset int, typ &Type) &Node {
   node := &Node{
     kind:Nodekind.lvar
@@ -247,7 +272,7 @@ fn (p Parser) new_node_gvar(offset int, typ &Type, name string) &Node {
   return node
 }
 
-fn (p Parser) new_node_str(kind Nodekind, num int, name string, args &Node) &Node {
+fn (p Parser) new_node_call(kind Nodekind, num int, name string, args &Node) &Node {
   node := &Node{
     kind:kind
     left:args
@@ -670,16 +695,23 @@ fn (p mut Parser) primary() &Node {
   }
   is_ident, name := p.consume_ident()
   if !is_ident {
+    is_string, content := p.consume_string()
+    if is_string {
+      node := p.new_node_string(content, p.str_offset)
+      p.str_offset++
+      p.strs << Nodewrap{node}
+      return node
+    }
     return p.new_node_num(p.expect_number())
   }
 
   if p.consume('(') {
     if p.consume(')') {
-      return p.new_node_str(.call, 0, name, &Node{})
+      return p.new_node_call(.call, 0, name, &Node{})
     } else {
       args, num := p.args()
       p.expect(')')
-      return p.new_node_str(.call, num, name, args)
+      return p.new_node_call(.call, num, name, args)
     }
   }
 

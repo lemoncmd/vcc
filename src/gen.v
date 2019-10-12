@@ -138,6 +138,10 @@ fn (p mut Parser) gen(node &Node) {
       println('  push ${node.num}')
       return
     }
+    .string => {
+      println('  push offset .L.C.${node.offset}')
+      return
+    }
     .lvar => {
       p.gen_lval(node)
       if node.typ.kind.last() != .ary {
@@ -150,7 +154,7 @@ fn (p mut Parser) gen(node &Node) {
       if node.typ.kind.last() != .ary {
         p.gen_load(node.typ)
       }
-      return 
+      return
     }
     .assign => {
       if node.left.typ.kind.last() == .ary {
