@@ -9,6 +9,9 @@ mut:
 enum Typekind {
   int
   char
+  short
+  long
+  ll
   ptr
   ary
 }
@@ -17,7 +20,10 @@ fn (typ Type) size() int {
   kind := typ.kind.last()
   size := match kind {
     .char => {1}
+    .short => {2}
     .int => {4}
+    .long => {8}
+    .ll => {8}
     .ptr => {8}
     .ary => {typ.suffix.last() * typ.reduce().size()}
     else => {8}
@@ -36,12 +42,27 @@ fn (typ Type) reduce() &Type {
   return typ2
 }
 
+fn (typ Type) clone() &Type {
+  mut typ2 := &Type{}
+  typ2.kind = typ.kind.clone()
+  typ2.suffix = typ.suffix.clone()
+  return typ2
+}
+
 fn (typ Type) is_int() bool {
-  return typ.kind.last() == .int
+  return typ.kind.last() in [Typekind.char, .short, .int, .long, .ll]
 }
 
 fn (typ Type) is_ptr() bool {
   return typ.kind.last() == .ptr || typ.kind.last() == .ary
+}
+
+fn type_max(typ1, typ2 &Type) &Type {
+  if typ1.size() > typ2.size() {
+    return typ1
+  } else {
+    return typ2
+  }
 }
 
 fn (node mut Node) add_type() {
@@ -73,12 +94,12 @@ fn (node mut Node) add_type() {
       node.typ = typ
     }
     .mul    => {
-      typ.kind << Typekind.int
-      node.typ = typ
+      bigtyp := type_max(node.left.typ, node.right.typ)
+      node.typ = bigtyp.clone()
     }
     .div    => {
-      typ.kind << Typekind.int
-      node.typ = typ
+      bigtyp := type_max(node.left.typ, node.right.typ)
+      node.typ = bigtyp.clone()
     }
     .eq     => {
       typ.kind << Typekind.int

@@ -108,11 +108,30 @@ fn (p mut Parser) consume_ident() (bool, string) {
 fn (p mut Parser) consume_type() (bool, &Type, string) {
   mut token := p.tokens[p.pos]
   mut typ := &Type{}
-  if token.kind != .reserved || token.str != 'int' {
+  if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char']) {
     return false, typ, ''
   }
-  typ.kind << Typekind.int
   p.pos++
+  match token.str {
+    'char' => {
+      typ.kind << Typekind.char
+    }
+    'int' => {
+      typ.kind << Typekind.int
+    }
+    'short' => {
+      p.consume('int')
+      typ.kind << Typekind.short
+    }
+    'long' => {
+      if p.consume('long') {
+        typ.kind << Typekind.ll
+      } else {
+        typ.kind << Typekind.long
+      }
+      p.consume('int')
+    }
+  }
   token = p.tokens[p.pos]
   for token.kind == .reserved && token.str == '*' {
     typ.kind << Typekind.ptr
@@ -140,7 +159,7 @@ fn (p mut Parser) expect(op string) {
 fn (p mut Parser) expect_number() int {
   token := p.tokens[p.pos]
   if token.kind != .num {
-    unexp_err(token, 'Expected number')
+    unexp_err(token, 'Expected number but got ${token.str}')
   }
   p.pos++
   return token.str.int()
@@ -149,7 +168,16 @@ fn (p mut Parser) expect_number() int {
 fn (p mut Parser) expect_ident() string {
   token := p.tokens[p.pos]
   if token.kind != .ident {
-    unexp_err(token, 'Expected ident')
+    unexp_err(token, 'Expected ident but got ${token.str}')
+  }
+  p.pos++
+  return token.str
+}
+
+fn (p mut Parser) expect_type() string {
+  token := p.tokens[p.pos]
+  if token.kind != .reserved || !(token.str in ['int', 'short', 'long', 'char']) {
+    unexp_err(token, 'Expected type but got ${token.str}')
   }
   p.pos++
   return token.str
@@ -276,9 +304,27 @@ fn (p mut Parser) program() {
 }
 
 fn (p mut Parser) top() {
-  p.expect('int')
   mut typ := &Type{}
-  typ.kind << Typekind.int
+  match p.expect_type() {
+    'char' => {
+      typ.kind << Typekind.char
+    }
+    'int' => {
+      typ.kind << Typekind.int
+    }
+    'short' => {
+      p.consume('int')
+      typ.kind << Typekind.short
+    }
+    'long' => {
+      if p.consume('long') {
+        typ.kind << Typekind.ll
+      } else {
+        typ.kind << Typekind.long
+      }
+      p.consume('int')
+    }
+  }
   for p.consume('*') {
     typ.kind << Typekind.ptr
   }
@@ -506,7 +552,7 @@ fn (p mut Parser) add() &Node {
         typ.suffix = node.typ.suffix.clone()
         node = p.new_node(.mul, node, num)
       } else if node.typ.is_int() && right.typ.is_int() {
-        typ.kind << Typekind.int
+        typ = type_max(node.typ, right.typ).clone()
       } else {
         parse_err('Operator + cannot add two pointers')
       }
@@ -531,7 +577,7 @@ fn (p mut Parser) add() &Node {
         node = p.new_node(.div, node, num)
         right = p.new_node(.div, right, num)
       } else if node.typ.is_int() && right.typ.is_int() {
-        typ.kind << Typekind.int
+        typ = type_max(node.typ, right.typ).clone()
       } else {
         parse_err('Operator - cannot sub pointers from int')
       }
@@ -595,7 +641,7 @@ fn (p mut Parser) postfix() &Node {
       typ.suffix = node.typ.suffix.clone()
       node = p.new_node(.mul, node, num)
     } else if node.typ.is_int() && right.typ.is_int() {
-      typ.kind << Typekind.int
+      parse_err('either expression in a[b] should be pointer')
     } else {
       parse_err('both body and suffix are pointers in a[b] expression')
     }
