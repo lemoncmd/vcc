@@ -211,8 +211,16 @@ fn (p mut Parser) gen(node &Node) {
     .add => {println('  add rax, rdi')}
     .sub => {println('  sub rax, rdi')}
     .mul => {println('  imul rax, rdi')}
-    .div => {println('  cqo
-  idiv rdi')}
+    .div => {
+      println('  cqo')
+      println('  idiv rdi')
+    }
+    .mod => {
+      println('  cqo')
+      println('  idiv rdi')
+      println('  push rdx')
+      return
+    }
     else => {
       println('  cmp rax, rdi')
       match node.kind {

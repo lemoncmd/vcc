@@ -101,6 +101,10 @@ fn (node mut Node) add_type() {
       bigtyp := type_max(node.left.typ, node.right.typ)
       node.typ = bigtyp.clone()
     }
+    .mod    => {
+      bigtyp := type_max(node.left.typ, node.right.typ)
+      node.typ = bigtyp.clone()
+    }
     .eq     => {
       typ.kind << Typekind.int
       node.typ = typ

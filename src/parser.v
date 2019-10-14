@@ -32,6 +32,7 @@ enum Nodekind {
   sub
   mul
   div
+  mod
   eq
   ne
   gt
@@ -52,6 +53,10 @@ enum Nodekind {
   deref
   addr
   sizof
+  incb
+  decb
+  incf
+  decf
 }
 
 struct Function {
@@ -623,6 +628,8 @@ fn (p mut Parser) mul() &Node {
       node = p.new_node(.mul, node, p.unary())
     } else if p.consume('/') {
       node = p.new_node(.div, node, p.unary())
+    } else if p.consume('%') {
+      node = p.new_node(.mod, node, p.unary())
     } else {
       return node
     }
