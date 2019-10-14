@@ -53,9 +53,6 @@ fn tokenize(p string) []Tok {
       for p[pos] != `\n` || pos < p.len {
         pos++
       }
-      pos++
-      line++
-      lpos = 0
       continue
     }
 
