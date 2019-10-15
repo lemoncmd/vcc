@@ -22,7 +22,7 @@ fn (typ Type) size() int {
     .char => {1}
     .short => {2}
     .int => {4}
-    .long => {8}
+    .long => {4}
     .ll => {8}
     .ptr => {8}
     .ary => {typ.suffix.last() * typ.reduce().size()}
@@ -124,6 +124,18 @@ fn (node mut Node) add_type() {
     .num    => {
       typ.kind << Typekind.int
       node.typ = typ
+    }
+    .incb   => {
+      node.typ = node.left.typ.clone()
+    }
+    .decb   => {
+      node.typ = node.left.typ.clone()
+    }
+    .incf   => {
+      node.typ = node.left.typ.clone()
+    }
+    .decf   => {
+      node.typ = node.left.typ.clone()
     }
     .call   => {
       typ.kind << Typekind.int

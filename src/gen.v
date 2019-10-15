@@ -33,6 +33,50 @@ fn (p mut Parser) gen_gval(node &Node) {
   println('  push offset ${node.name}')
 }
 
+fn (p Parser) gen_inc(kind Nodekind, typ &Type){
+  println('  pop rax')
+  if typ.kind.last() == .ary {
+    parse_err('you cannot inc/decrement array')
+  }
+  cmd := if kind in [Nodekind.incb, .incf] {
+    'add'
+  } else {
+    'sub'
+  }
+  if kind in [Nodekind.incb, .decb] {
+    match typ.size() {
+      1 => {println('  movsx rdx, byte ptr [rax]')}
+      2 => {println('  movsx rdx, word ptr [rax]')}
+      4 => {println('  movsxd rdx, dword ptr [rax]')}
+      8 => {println('  mov rdx, [rax]')}
+      else => {parse_err('you are loading something wrong')}
+    }
+    println('  push rdx')
+  }
+  if typ.kind.last() != .ptr {
+    match typ.size() {
+      1 => {println('  $cmd byte ptr [rax], 1')}
+      2 => {println('  $cmd word ptr [rax], 1')}
+      4 => {println('  $cmd dword ptr [rax], 1')}
+      8 => {println('  $cmd [rax], 1')}
+      else => {parse_err('you are loading something wrong')}
+    }
+  } else {
+    size := typ.reduce().size()
+    println('  $cmd [rax], $size')
+  }
+  if kind in [Nodekind.incf, .decf] {
+    match typ.size() {
+      1 => {println('  movsx rdx, byte ptr [rax]')}
+      2 => {println('  movsx rdx, word ptr [rax]')}
+      4 => {println('  movsxd rdx, dword ptr [rax]')}
+      8 => {println('  mov rdx, [rax]')}
+      else => {parse_err('you are loading something wrong')}
+    }
+    println('  push rdx')
+  }
+}
+
 fn (p Parser) gen_load(typ &Type){
   println('  pop rax')
   match typ.size() {
@@ -81,11 +125,46 @@ fn (p mut Parser) gen(node &Node) {
       }
       return
     }
+    .incb => {
+      if node.left.kind == .lvar {
+        p.gen_lval(node.left)
+      } else {
+        p.gen_gval(node.left)
+      }
+      p.gen_inc(node.kind, node.left.typ)
+      return
+    }
+    .decb => {
+      if node.left.kind == .lvar {
+        p.gen_lval(node.left)
+      } else {
+        p.gen_gval(node.left)
+      }
+      p.gen_inc(node.kind, node.left.typ)
+      return
+    }
+    .incf => {
+      if node.left.kind == .lvar {
+        p.gen_lval(node.left)
+      } else {
+        p.gen_gval(node.left)
+      }
+      p.gen_inc(node.kind, node.left.typ)
+      return
+    }
+    .decf => {
+      if node.left.kind == .lvar {
+        p.gen_lval(node.left)
+      } else {
+        p.gen_gval(node.left)
+      }
+      p.gen_inc(node.kind, node.left.typ)
+      return
+    }
     .block => {
       for i in node.code {
         code := &Node(i)
         p.gen(code)
-        //println('  pop rax')
       }
       return
     }

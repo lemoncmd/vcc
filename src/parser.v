@@ -644,6 +644,10 @@ fn (p mut Parser) unary() &Node {
     return p.new_node(.deref, p.unary(), &Node{})
   } else if p.consume('&') {
     return p.new_node(.addr, p.unary(), &Node{})
+  } else if p.consume('++') {
+    return p.new_node(.incf, p.unary(), &Node{})
+  } else if p.consume('--') {
+    return p.new_node(.decf, p.unary(), &Node{})
   } else if p.consume('+') {
     return p.unary()
   } else if p.consume('-') {
@@ -655,6 +659,11 @@ fn (p mut Parser) unary() &Node {
 fn (p mut Parser) postfix() &Node {
   mut node := p.primary()
 
+  if p.consume('++') {
+    node = p.new_node(.incb, node, &Node{})
+  } else if p.consume('--') {
+    node = p.new_node(.decb, node, &Node{})
+  }
   for p.consume('[') {
     mut right := p.expr()
     node.add_type()
