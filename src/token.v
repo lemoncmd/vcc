@@ -114,6 +114,13 @@ fn tokenize(p string) []Tok {
       continue
     }
 
+    if is_token_string(p, 'struct', pos) {
+      tokens << new_token(.reserved, 'struct', line, lpos)
+      pos += 6
+      lpos += 6
+      continue
+    }
+
     if is_token_string(p, 'int', pos) {
       tokens << new_token(.reserved, 'int', line, lpos)
       pos += 3
@@ -149,8 +156,9 @@ fn tokenize(p string) []Tok {
       continue
     }
 
-    if p[pos] in [`+`, `-`, `*`, `/`, `(`, `)`, `<`, `>`, `;`, `=`, `{`, `}`, `,`, `&`, `[`, `]`, `%`, `!`, `|`, `^`, `~`] {
-      tokens << new_token(.reserved, p[pos++].str(), line, lpos)
+    if p[pos] in [`+`, `-`, `*`, `/`, `(`, `)`, `<`, `>`, `;`, `=`, `{`, `}`, `,`, `&`, `[`, `]`, `%`, `!`, `|`, `^`, `~`, `?`, `:`] {
+      tokens << new_token(.reserved, p[pos].str(), line, lpos)
+      pos++
       lpos++
       continue
     }
@@ -159,12 +167,20 @@ fn tokenize(p string) []Tok {
       pos++
       lpos++
       start_pos := pos
-      for p[pos-1] == `\`` || p[pos] != `"` {
+      for p[pos] != `"` {
+        if p[pos] == `\\` {
+          pos++
+          lpos++
+          if p[pos] == `\n` {
+            line++
+            lpos = 0
+          }
+        }
         pos++
         lpos++
         if p[pos] == `\n` {
           line++
-          lpos=0
+          lpos = 0
         }
       }
       tokens << new_token(.string, p.substr(start_pos, pos).replace('\\\n', ''), line, lpos)

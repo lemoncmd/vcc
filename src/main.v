@@ -49,11 +49,7 @@ fn main(){
 
   for name, _func in parser.code {
     func := _func.val
-    offset := if func.locals.len == 0 {
-      0
-    } else {
-      &Lvar(func.locals.last()).offset
-    }
+    offset := parser.curfn.offset
     parser.curfn = func
 
     println('.global $name')

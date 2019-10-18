@@ -7,6 +7,7 @@ mut:
   code map[string]Funcwrap
   ifnum int
   curfn &Function
+  curbl []Nodewrap
   global map[string]Lvarwrap
   offset int
   str_offset int
@@ -67,6 +68,7 @@ mut:
   args &Node
   content &Node
   locals []voidptr // []&Lvar
+  offset int
 }
 
 struct Node {
@@ -326,7 +328,11 @@ fn (p Parser) find_lvar(name string) (bool, &Lvar) {
   }
   return false, &Lvar{}
 }
-
+/*
+fn (p Parser) find_struct(name string) (bool, ) {
+  s
+}
+*/
 fn (p mut Parser) program() {
   for p.tokens[p.pos].kind != .eof {
     p.top()
@@ -385,12 +391,8 @@ fn (p mut Parser) fnargs() (&Node, int) {
     parse_err('$name is already declared')
   }
 
-  mut offset := if p.curfn.locals.len == 0 {
-    0
-  } else {
-    &Lvar(p.curfn.locals.last()).offset
-  }
-  offset += typ.size()
+  p.curfn.offset += typ.size()
+  offset := p.curfn.offset
   lvar.offset = offset
   p.curfn.locals << voidptr(lvar)
   lvar_node := p.new_node_lvar(lvar.offset, typ)
@@ -420,12 +422,8 @@ fn (p mut Parser) function(name string, typ &Type) &Function {
 }
 
 fn (p mut Parser) declare(typ &Type, name string) int {
-  mut offset := if p.curfn.locals.len == 0 {
-    0
-  } else {
-    &Lvar(p.curfn.locals.last()).offset
-  }
-  offset += typ.size()
+  p.curfn.offset += typ.size()
+  offset := p.curfn.offset
   nlvar := p.new_lvar(name, typ, offset)
   p.curfn.locals << voidptr(nlvar)
   return offset
@@ -518,10 +516,21 @@ fn (p mut Parser) expr() &Node {
 }
 
 fn (p mut Parser) assign() &Node {
-  mut node := p.equality()
+  mut node := p.ternary()
 
   if p.consume('=') {
     node = p.new_node(.assign, node, p.assign())
+  }
+  return node
+}
+
+fn (p mut Parser) ternary() &Node {
+  mut node := p.equality()
+  if p.consume('?') {
+    expr_true := p.ternary()
+    p.expect(':')
+    node = p.new_node_with_cond(.ifelse, node, expr_true, p.ternary(), p.ifnum)
+    p.ifnum++
   }
   return node
 }

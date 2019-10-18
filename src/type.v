@@ -15,6 +15,13 @@ enum Typekind {
   ptr
   ary
 }
+/*
+fn (p mut Parser) consume_struct() {
+  is_ident, name := p.consume_ident()
+  if is_ident {
+    is_struct, strc := p.find_struct(name)
+
+*/
 
 fn (typ Type) size() int {
   kind := typ.kind.last()
