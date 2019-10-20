@@ -130,10 +130,21 @@ fn (p mut Parser) consume_string() (bool, string) {
 }
 
 fn (p mut Parser) consume_type() (bool, &Type, string) {
-  mut token := p.tokens[p.pos]
+  is_typ, typ := p.consume_type_base()
+  if !is_typ {
+    return false, typ, ''
+  }
+  p.consume_type_front(mut typ)
+  name := p.expect_ident()
+  p.consume_type_back(mut typ)
+  return true, typ, name
+}
+
+fn (p mut Parser) consume_type_base() (bool, &Type) {
+  token := p.tokens[p.pos]
   mut typ := &Type{}
   if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char']) {
-    return false, typ, ''
+    return false, typ
   }
   p.pos++
   match token.str {
@@ -156,19 +167,26 @@ fn (p mut Parser) consume_type() (bool, &Type, string) {
       p.consume('int')
     }
   }
-  token = p.tokens[p.pos]
+  return true, typ
+}
+
+fn (p mut Parser) consume_type_front(typ mut Type) {
+  mut token := p.tokens[p.pos]
   for token.kind == .reserved && token.str == '*' {
     typ.kind << Typekind.ptr
     p.pos++
     token = p.tokens[p.pos]
   }
-  name := p.expect_ident()
-  for p.consume('[') {
-    typ.kind << Typekind.ary
-    typ.suffix << p.expect_number()
+}
+
+fn (p mut Parser) consume_type_back(typ mut Type) {
+  if p.consume('[') {
+    number := p.expect_number()
     p.expect(']')
+    p.consume_type_back(mut typ)
+    typ.kind << Typekind.ary
+    typ.suffix << number
   }
-  return true, typ, name
 }
 
 fn (p mut Parser) expect(op string) {
@@ -345,40 +363,16 @@ fn (p mut Parser) program() {
 }
 
 fn (p mut Parser) top() {
-  mut typ := &Type{}
-  match p.expect_type() {
-    'char' => {
-      typ.kind << Typekind.char
-    }
-    'int' => {
-      typ.kind << Typekind.int
-    }
-    'short' => {
-      p.consume('int')
-      typ.kind << Typekind.short
-    }
-    'long' => {
-      if p.consume('long') {
-        typ.kind << Typekind.ll
-      } else {
-        typ.kind << Typekind.long
-      }
-      p.consume('int')
-    }
+  is_typ, mut typ := p.consume_type_base()
+  if !is_typ {
+    parse_err('expected type')
   }
-  for p.consume('*') {
-    typ.kind << Typekind.ptr
-  }
+  p.consume_type_front(mut typ)
   name := p.expect_ident()
   if p.consume('(') {
     p.code[name] = Funcwrap{p.function(name, typ)}
   } else {
-    for p.consume('[') {
-      num := p.expect_number()
-      typ.kind << Typekind.ary
-      typ.suffix << num
-      p.expect(']')
-    }
+    p.consume_type_back(mut typ)
     p.expect(';')
     p.global[name] = Lvarwrap{p.new_gvar(name, typ, p.offset)}
     p.offset += typ.size()
@@ -507,16 +501,27 @@ fn (p mut Parser) block() &Node {
 
   p.expect('{')
   for !p.consume('}') {
-    is_dec, typ, name := p.consume_type()
+    is_dec, typ_base := p.consume_type_base()
     if is_dec {
-      offset := p.declare(typ, name)
-      if p.consume('=') {
-        lvar := p.new_node_lvar(offset, typ)
-        mut assign := p.new_node(.assign, lvar, p.expr())
-        assign.add_type()
-        node.code << voidptr(assign)
+      mut first := true
+      for !p.consume(';') {
+        mut typ := typ_base.clone()
+        if first {
+          first = false
+        } else {
+          p.expect(',')
+        }
+        p.consume_type_front(mut typ)
+        name := p.expect_ident()
+        p.consume_type_back(mut typ)
+        offset := p.declare(typ, name)
+        if p.consume('=') {
+          lvar := p.new_node_lvar(offset, typ)
+          mut assign := p.new_node(.assign, lvar, p.expr())
+          assign.add_type()
+          node.code << voidptr(assign)
+        }
       }
-      p.expect(';')
     } else {
       node.code << voidptr(p.stmt())
     }
