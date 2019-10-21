@@ -23,13 +23,17 @@ fn (p mut Parser) consume_struct() {
 
 */
 
+fn align(offset, size int) int {
+  return (offset+size-1) & ~(size-1)
+}
+
 fn (typ Type) size() int {
   kind := typ.kind.last()
   size := match kind {
     .char => {1}
     .short => {2}
     .int => {4}
-    .long => {4}
+    .long => {8}
     .ll => {8}
     .ptr => {8}
     .ary => {typ.suffix.last() * typ.reduce().size()}
@@ -54,6 +58,11 @@ fn (typ Type) clone() &Type {
   typ2.kind = typ.kind.clone()
   typ2.suffix = typ.suffix.clone()
   return typ2
+}
+
+fn (typ mut Type) merge(typ2 &Type) {
+  typ.kind << typ2.kind
+  typ.suffix << typ2.suffix
 }
 
 fn (typ Type) is_int() bool {

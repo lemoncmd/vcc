@@ -374,6 +374,7 @@ fn (p mut Parser) top() {
   } else {
     p.consume_type_back(mut typ)
     p.expect(';')
+    p.offset = align(p.offset, typ.size())
     p.global[name] = Lvarwrap{p.new_gvar(name, typ, p.offset)}
     p.offset += typ.size()
   }
@@ -391,6 +392,7 @@ fn (p mut Parser) fnargs() (&Node, int) {
   }
 
   p.curfn.offset += typ.size()
+  p.curfn.offset = align(p.curfn.offset, typ.size())
   offset := p.curfn.offset
   lvar.offset = offset
   mut block := p.curbl.last()
@@ -427,6 +429,7 @@ fn (p mut Parser) declare(typ &Type, name string) int {
     parse_err('$name is already declared')
   }
   p.curfn.offset += typ.size()
+  p.curfn.offset = align(p.curfn.offset, typ.size())
   offset := p.curfn.offset
   nlvar := p.new_lvar(name, typ, offset)
   mut block := p.curbl.last()

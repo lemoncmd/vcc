@@ -2,12 +2,12 @@ module main
 
 import os
 
-fn parse_err(s string){
+fn parse_err(s string) {
   eprintln(s)
   exit(1)
 }
 
-fn unexp_err(token Tok, s string){
+fn unexp_err(token Tok, s string) {
   eprintln('${token.line}:${token.pos}: $s')
   exit(1)
 }
@@ -49,7 +49,7 @@ fn main(){
 
   for name, _func in parser.code {
     func := _func.val
-    offset := parser.curfn.offset
+    offset := align(parser.curfn.offset, 16)
     parser.curfn = func
 
     println('.global $name')
