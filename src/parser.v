@@ -129,66 +129,6 @@ fn (p mut Parser) consume_string() (bool, string) {
   return false, ''
 }
 
-fn (p mut Parser) consume_type() (bool, &Type, string) {
-  is_typ, typ := p.consume_type_base()
-  if !is_typ {
-    return false, typ, ''
-  }
-  p.consume_type_front(mut typ)
-  name := p.expect_ident()
-  p.consume_type_back(mut typ)
-  return true, typ, name
-}
-
-fn (p mut Parser) consume_type_base() (bool, &Type) {
-  token := p.tokens[p.pos]
-  mut typ := &Type{}
-  if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char']) {
-    return false, typ
-  }
-  p.pos++
-  match token.str {
-    'char' => {
-      typ.kind << Typekind.char
-    }
-    'int' => {
-      typ.kind << Typekind.int
-    }
-    'short' => {
-      p.consume('int')
-      typ.kind << Typekind.short
-    }
-    'long' => {
-      if p.consume('long') {
-        typ.kind << Typekind.ll
-      } else {
-        typ.kind << Typekind.long
-      }
-      p.consume('int')
-    }
-  }
-  return true, typ
-}
-
-fn (p mut Parser) consume_type_front(typ mut Type) {
-  mut token := p.tokens[p.pos]
-  for token.kind == .reserved && token.str == '*' {
-    typ.kind << Typekind.ptr
-    p.pos++
-    token = p.tokens[p.pos]
-  }
-}
-
-fn (p mut Parser) consume_type_back(typ mut Type) {
-  if p.consume('[') {
-    number := p.expect_number()
-    p.expect(']')
-    p.consume_type_back(mut typ)
-    typ.kind << Typekind.ary
-    typ.suffix << number
-  }
-}
-
 fn (p mut Parser) expect(op string) {
   token := p.tokens[p.pos]
   if token.kind != .reserved || token.str != op {
@@ -211,15 +151,6 @@ fn (p mut Parser) expect_ident() string {
   token := p.tokens[p.pos]
   if token.kind != .ident {
     unexp_err(token, 'Expected ident but got ${token.str}')
-  }
-  p.pos++
-  return token.str
-}
-
-fn (p mut Parser) expect_type() string {
-  token := p.tokens[p.pos]
-  if token.kind != .reserved || !(token.str in ['int', 'short', 'long', 'char']) {
-    unexp_err(token, 'Expected type but got ${token.str}')
   }
   p.pos++
   return token.str
