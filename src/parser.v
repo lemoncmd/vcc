@@ -9,7 +9,7 @@ mut:
   curfn &Function
   curbl []Nodewrap
   global map[string]Lvarwrap
-  offset int
+  glstrc map[string]Strcwrap
   str_offset int
   strs []Nodewrap
 }
@@ -25,6 +25,11 @@ struct Lvarwrap {
 struct Nodewrap {
 mut:
   val &Node
+}
+
+struct Strcwrap {
+mut:
+  val &Struct
 }
 
 enum Nodekind {
@@ -84,6 +89,7 @@ mut:
   code []voidptr
   typ &Type
   locals []voidptr // []&Lvar
+  structs map[string]Strcwrap
 }
 
 struct Lvar {
@@ -92,6 +98,20 @@ struct Lvar {
   is_global bool
 mut:
   offset int
+}
+
+struct Struct {
+  name string
+  kind Structkind
+mut:
+  content map[string]Lvarwrap
+  offset int
+}
+
+enum Structkind {
+  strc
+  unn
+  enm
 }
 
 fn (p Parser) look_for(op string) bool {
@@ -257,7 +277,7 @@ fn (p Parser) new_lvar(name string, typ &Type, offset int) &Lvar {
   return lvar
 }
 
-fn (p Parser) new_gvar(name string, typ &Type, offset int) &Lvar {
+fn (p Parser) new_gvar(name string, typ &Type) &Lvar {
   lvar := &Lvar{
     name:name
     typ:typ
@@ -282,11 +302,22 @@ fn (p Parser) find_lvar(name string) (bool, &Lvar, bool) {
   }
   return false, &Lvar{}, false
 }
-/*
-fn (p Parser) find_struct(name string) (bool, ) {
-  s
+
+fn (p Parser) find_struct(name string) (bool, &Struct, bool) {
+  mut is_curbl := true
+  for _block in p.curbl.reverse() {
+    block := _block.val
+    if name in block.structs {
+      return true, block.structs[name].val, is_curbl
+    }
+    is_curbl = false
+  }
+  if name in p.glstrc {
+    return true, p.glstrc[name].val, is_curbl
+  }
+  return false, &Struct{}, false
 }
-*/
+
 fn (p mut Parser) program() {
   for p.tokens[p.pos].kind != .eof {
     p.top()
@@ -305,9 +336,10 @@ fn (p mut Parser) top() {
   } else {
     p.consume_type_back(mut typ)
     p.expect(';')
-    p.offset = align(p.offset, typ.size())
-    p.global[name] = Lvarwrap{p.new_gvar(name, typ, p.offset)}
-    p.offset += typ.size()
+    if name in p.global {
+      parse_err('duplicated global variable $name')
+    }
+    p.global[name] = Lvarwrap{p.new_gvar(name, typ)}
   }
 }
 

@@ -4,6 +4,7 @@ struct Type {
 mut:
   kind []Typekind
   suffix []int
+  strc []Strcwrap
 }
 
 enum Typekind {
@@ -14,6 +15,7 @@ enum Typekind {
   ll
   ptr
   ary
+  strc
 }
 
 fn (p mut Parser) consume_type() (bool, &Type, string) {
@@ -34,7 +36,7 @@ fn (p mut Parser) consume_type_base() (bool, &Type) {
     return false, typ
   }
   if token.str == 'struct'{
- //   p.consume_type_struct()
+    typ = p.consume_type_struct()
   } else {
     p.pos++
     match token.str {
@@ -89,13 +91,65 @@ fn (p mut Parser) expect_type() string {
   return token.str
 }
 
-/*
-fn (p mut Parser) consume_struct() {
-  is_ident, name := p.consume_ident()
-  if is_ident {
-    is_struct, strc := p.find_struct(name)
 
-*/
+fn (p mut Parser) consume_type_struct() &Type {
+  mut typ := &Type{}
+  typ.kind << Typekind.strc
+  is_ident, name := p.consume_ident()
+  mut is_decl := false
+  if is_ident {
+    is_struct, strc, is_curbl := p.find_struct(name)
+    if is_struct {
+      if is_curbl {
+        if p.consume('{') {
+          parse_err('struct $name is already declared in the block')
+        }
+        typ.strc << Strcwrap{strc}
+        return typ
+      }
+      if p.consume('{') {
+        is_decl = true
+      } else {
+        typ.strc << Strcwrap{strc}
+        return typ
+      }
+    } else {
+      if p.consume('{') {
+        is_decl = true
+      }
+    }
+  }
+  if is_decl {
+    mut strc := &Struct{name:name, kind:Structkind.strc}
+    for !p.consume('}') {
+      is_dec, typ_base := p.consume_type_base()
+      if is_dec {
+        mut first := true
+        for !p.consume(';') {
+          mut typ_child := typ_base.clone()
+          if first {
+            first = false
+          } else {
+            p.expect(',')
+          }
+          p.consume_type_front(mut typ_child)
+          name_child := p.expect_ident()
+          if name_child in strc.content {
+            parse_err('duplicated member $name')
+          }
+          p.consume_type_back(mut typ_child)
+          strc.offset = align(strc.offset, typ_child.size())
+          lvar := &Lvar{name_child, typ_child, false, strc.offset}
+          strc.offset += typ_child.size()
+          strc.content[name_child] = Lvarwrap{lvar}
+        }
+      } else {
+        parse_err('expected type')
+      }
+    }
+  }
+  return &Type{}
+}
 
 fn align(offset, size int) int {
   return (offset+size-1) & ~(size-1)
