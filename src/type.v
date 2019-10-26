@@ -40,17 +40,17 @@ fn (p mut Parser) consume_type_base() (bool, &Type) {
   } else {
     p.pos++
     match token.str {
-      'char' => {
+      'char' {
         typ.kind << Typekind.char
       }
-      'int' => {
+      'int' {
         typ.kind << Typekind.int
       }
-      'short' => {
+      'short' {
         p.consume('int')
         typ.kind << Typekind.short
       }
-      'long' => {
+      'long' {
         if p.consume('long') {
           typ.kind << Typekind.ll
         } else {
@@ -158,14 +158,12 @@ fn align(offset, size int) int {
 fn (typ Type) size() int {
   kind := typ.kind.last()
   size := match kind {
-    .char => {1}
-    .short => {2}
-    .int => {4}
-    .long => {8}
-    .ll => {8}
-    .ptr => {8}
-    .ary => {typ.suffix.last() * typ.reduce().size()}
-    else => {8}
+    .char {1}
+    .short {2}
+    .int {4}
+    .long, .ll, .ptr {8}
+    .ary {typ.suffix.last() * typ.reduce().size()}
+    else {8}
   }
   return size
 }
@@ -226,70 +224,29 @@ fn (node mut Node) add_type() {
   mut typ := &Type{}
 
   match(node.kind) {
-    .assign => {
+    .assign {
       node.typ = node.left.typ
     }
-    .add    => {
+    .add, .sub, .eq, .ne, .gt, .ge, .num {
       typ.kind << Typekind.int
       node.typ = typ
     }
-    .sub    => {
-      typ.kind << Typekind.int
-      node.typ = typ
-    }
-    .mul    => {
+    .mul, .div, .mod {
       bigtyp := type_max(node.left.typ, node.right.typ)
       node.typ = bigtyp.clone()
     }
-    .div    => {
-      bigtyp := type_max(node.left.typ, node.right.typ)
-      node.typ = bigtyp.clone()
-    }
-    .mod    => {
-      bigtyp := type_max(node.left.typ, node.right.typ)
-      node.typ = bigtyp.clone()
-    }
-    .eq     => {
-      typ.kind << Typekind.int
-      node.typ = typ
-    }
-    .ne     => {
-      typ.kind << Typekind.int
-      node.typ = typ
-    }
-    .gt     => {
-      typ.kind << Typekind.int
-      node.typ = typ
-    }
-    .ge     => {
-      typ.kind << Typekind.int
-      node.typ = typ
-    }
-    .num    => {
-      typ.kind << Typekind.int
-      node.typ = typ
-    }
-    .incb   => {
+    .incb, .decb, .incf, .decf {
       node.typ = node.left.typ.clone()
     }
-    .decb   => {
-      node.typ = node.left.typ.clone()
-    }
-    .incf   => {
-      node.typ = node.left.typ.clone()
-    }
-    .decf   => {
-      node.typ = node.left.typ.clone()
-    }
-    .call   => {
+    .call {
       typ.kind << Typekind.int
       node.typ = typ
     }
-    .sizof  => {
+    .sizof {
       typ.kind << Typekind.int
       node.typ = typ
     }
-    .deref  => {
+    .deref {
       if node.left.typ.is_ptr() {
         typ.kind = node.left.typ.kind.clone()
         typ.suffix = node.left.typ.suffix.clone()
@@ -299,7 +256,7 @@ fn (node mut Node) add_type() {
       }
       node.typ = typ
     }
-    .addr   => {
+    .addr {
       typ.kind = node.left.typ.kind.clone()
       typ.suffix = node.left.typ.suffix.clone()
       if typ.kind.last() == .ary {
@@ -308,7 +265,7 @@ fn (node mut Node) add_type() {
       typ.kind << Typekind.ptr
       node.typ = typ
     }
-    .string => {
+    .string {
       typ.kind << Typekind.char
       typ.kind << Typekind.ary
       typ.suffix << node.name.len+1
