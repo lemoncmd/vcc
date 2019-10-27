@@ -421,8 +421,21 @@ fn (p mut Parser) stmt() &Node {
     p.ifnum++
   } else if p.consume('for') {
     p.expect('(')
+    mut outer_block := p.new_node(.block, &Node{}, &Node{})
+    p.curbl << Nodewrap{outer_block}
     mut node_tmp := &Node{}
-    first := if p.consume(';') {
+    is_decl, fortyp, name := p.consume_type()
+    offset := if is_decl {
+      p.declare(fortyp, name)
+    } else {
+      0
+    }
+    first := if is_decl && p.consume('=') {
+      node_tmp = p.new_node(.assign, p.new_node_lvar(offset, fortyp), p.expr())
+      node_tmp.add_type()
+      p.expect(';')
+      node_tmp
+    } else if p.consume(';') {
       p.new_node_num(0)
     } else {
       node_tmp = p.expr()
@@ -444,6 +457,7 @@ fn (p mut Parser) stmt() &Node {
       node_tmp
     }
     stmt := p.stmt()
+    p.curbl.delete(p.curbl.len-1)
     node = p.new_node_with_all(.forn, first, cond, stmt, right, p.ifnum)
     p.ifnum++
   } else if p.consume('while') {
