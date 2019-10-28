@@ -2,7 +2,7 @@ vcc:
 	v -o vcc ./src
 
 test: vcc
-	./test.sh
+	v run test.vsh
 	make clean
 
 clean:

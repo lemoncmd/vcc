@@ -172,6 +172,7 @@ fn (p mut Parser) gen(node &Node) {
       p.genifnum << node.num
       p.gen(node.left)
       p.genifnum.delete(p.genifnum.len-1)
+      println('.Lcont${node.num}:')
       p.gen(node.right)
       println('  jmp .Lbegin${node.num}')
       println('.Lend${node.num}:')
@@ -186,6 +187,7 @@ fn (p mut Parser) gen(node &Node) {
       p.genifnum << node.num
       p.gen(node.left)
       p.genifnum.delete(p.genifnum.len-1)
+      println('.Lcont${node.num}:')
       println('  jmp .Lbegin${node.num}')
       println('.Lend${node.num}:')
       return
@@ -203,7 +205,7 @@ fn (p mut Parser) gen(node &Node) {
         parse_err('cannot continue not in loop statement')
       }
       ifnum := p.genifnum.last()
-      println('  jmp .Lbegin$ifnum')
+      println('  jmp .Lcont$ifnum')
       return
     }
     .num {
