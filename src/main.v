@@ -49,8 +49,8 @@ fn main(){
 
   for name, _func in parser.code {
     func := _func.val
-    offset := align(parser.curfn.offset, 16)
     parser.curfn = func
+    offset := align(parser.curfn.offset, 16)
 
     println('.global $name')
     println('$name:')

@@ -346,7 +346,7 @@ fn (p mut Parser) top() {
   }
 }
 
-fn (p mut Parser) fnargs() (&Node, int) {
+fn (p mut Parser) fnargs() (&Node, []Lvarwrap, int) {
   is_typ, typ, name := p.consume_type()
   if !is_typ {
     parse_err('Expected type')
@@ -361,15 +361,14 @@ fn (p mut Parser) fnargs() (&Node, int) {
   p.curfn.offset = align(p.curfn.offset, typ.size())
   offset := p.curfn.offset
   lvar.offset = offset
-  mut block := p.curbl.last()
-  block.val.locals << voidptr(lvar)
   lvar_node := p.new_node_lvar(lvar.offset, typ)
 
   if p.consume(',') {
-    args, num := p.fnargs()
-    return p.new_node(.fnargs, lvar_node, args), num+1
+    args, mut lvars, num := p.fnargs()
+    lvars << Lvarwrap{lvar}
+    return p.new_node(.fnargs, lvar_node, args), lvars, num+1
   }
-  return p.new_node(.fnargs, lvar_node, &Node{}), 1
+  return p.new_node(.fnargs, lvar_node, &Node{}), [Lvarwrap{lvar}], 1
 }
 
 fn (p mut Parser) function(name string, typ &Type) &Function {
@@ -377,15 +376,24 @@ fn (p mut Parser) function(name string, typ &Type) &Function {
   p.curfn = func
   mut num := 0
   mut args := &Node{}
+  mut lvars := []Lvarwrap
   if !p.consume(')') {
-    _args, _num := p.fnargs()
+    _args, _lvars, _num := p.fnargs()
     args = _args
     num = _num
+    lvars << _lvars
     p.expect(')')
   }
   func.args = args
   func.num = num
-  func.content = p.block()
+  mut content := p.new_node(.block, &Node{}, &Node{})
+  p.curbl << Nodewrap{content}
+  for lvar in lvars {
+    content.locals << voidptr(lvar)
+  }
+  p.block_without_curbl(mut content)
+  p.curbl.delete(p.curbl.len-1)
+  func.content = content
   return func
 }
 
@@ -490,6 +498,13 @@ fn (p mut Parser) block() &Node {
   mut node := p.new_node(.block, &Node{}, &Node{})
   p.curbl << Nodewrap{node}
 
+  p.block_without_curbl(mut node)
+
+  p.curbl.delete(p.curbl.len-1)
+  return node
+}
+
+fn (p mut Parser) block_without_curbl(node mut Node) {
   p.expect('{')
   for !p.consume('}') {
     is_dec, typ_base := p.consume_type_base()
@@ -517,9 +532,6 @@ fn (p mut Parser) block() &Node {
       node.code << voidptr(p.stmt())
     }
   }
-
-  p.curbl.delete(p.curbl.len-1)
-  return node
 }
 
 fn (p mut Parser) expr() &Node {
