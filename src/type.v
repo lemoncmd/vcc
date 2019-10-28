@@ -32,9 +32,10 @@ fn (p mut Parser) consume_type() (bool, &Type, string) {
 fn (p mut Parser) consume_type_base() (bool, &Type) {
   token := p.tokens[p.pos]
   mut typ := &Type{}
-  if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char', 'struct']) {
+  if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char', 'struct', 'const']) {
     return false, typ
   }
+  for p.consume('const') {}
   if token.str == 'struct'{
     typ = p.consume_type_struct()
   } else {
@@ -47,19 +48,23 @@ fn (p mut Parser) consume_type_base() (bool, &Type) {
         typ.kind << Typekind.int
       }
       'short' {
+        for p.consume('const') {}
         p.consume('int')
         typ.kind << Typekind.short
       }
       'long' {
+        for p.consume('const') {}
         if p.consume('long') {
           typ.kind << Typekind.ll
         } else {
           typ.kind << Typekind.long
         }
+        for p.consume('const') {}
         p.consume('int')
       }
     }
   }
+  for p.consume('const') {}
   return true, typ
 }
 
@@ -69,6 +74,7 @@ fn (p mut Parser) consume_type_front(typ mut Type) {
     typ.kind << Typekind.ptr
     p.pos++
     token = p.tokens[p.pos]
+    for p.consume('const') {}
   }
 }
 

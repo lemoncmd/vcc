@@ -121,6 +121,13 @@ fn tokenize(p string) []Tok {
       continue
     }
 
+    if is_token_string(p, 'const', pos) {
+      tokens << new_token(.reserved, 'const', line, lpos)
+      pos += 5
+      lpos += 5
+      continue
+    }
+
     if is_token_string(p, 'int', pos) {
       tokens << new_token(.reserved, 'int', line, lpos)
       pos += 3
