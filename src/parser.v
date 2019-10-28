@@ -54,6 +54,8 @@ enum Nodekind {
   ifelse
   forn
   while
+  brk
+  cont
   block
   call
   args
@@ -468,6 +470,14 @@ fn (p mut Parser) stmt() &Node {
     stmt := p.stmt()
     node = p.new_node_with_cond(.while, expr, stmt, &Node{}, p.ifnum)
     p.ifnum++
+  } else if p.consume('break') {
+    node = p.new_node(.brk, &Node{}, &Node{})
+    p.expect(';')
+  } else if p.consume('continue') {
+    node = p.new_node(.cont, &Node{}, &Node{})
+    p.expect(';')
+  } else if p.consume(';') {
+    node = p.new_node(.nothing, &Node{}, &Node{})
   } else {
     node = p.expr()
     p.expect(';')

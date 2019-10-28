@@ -169,7 +169,9 @@ fn (p mut Parser) gen(node &Node) {
       println('  pop rax')
       println('  cmp rax, 0')
       println('  je .Lend${node.num}')
+      p.genifnum << node.num
       p.gen(node.left)
+      p.genifnum.delete(p.genifnum.len-1)
       p.gen(node.right)
       println('  jmp .Lbegin${node.num}')
       println('.Lend${node.num}:')
@@ -181,9 +183,27 @@ fn (p mut Parser) gen(node &Node) {
       println('  pop rax')
       println('  cmp rax, 0')
       println('  je .Lend${node.num}')
+      p.genifnum << node.num
       p.gen(node.left)
+      p.genifnum.delete(p.genifnum.len-1)
       println('  jmp .Lbegin${node.num}')
       println('.Lend${node.num}:')
+      return
+    }
+    .brk {
+      if p.genifnum.len == 0 {
+        parse_err('cannot break not in loop statement')
+      }
+      ifnum := p.genifnum.last()
+      println('  jmp .Lend$ifnum')
+      return
+    }
+    .cont {
+      if p.genifnum.len == 0 {
+        parse_err('cannot continue not in loop statement')
+      }
+      ifnum := p.genifnum.last()
+      println('  jmp .Lbegin$ifnum')
       return
     }
     .num {
@@ -249,6 +269,9 @@ fn (p mut Parser) gen(node &Node) {
     .sizof {
       size := node.left.typ.size()
       println('  push $size')
+      return
+    }
+    .nothing {
       return
     }
   }
