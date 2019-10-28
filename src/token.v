@@ -72,88 +72,15 @@ fn tokenize(p string) []Tok {
       continue
     }
 
-    if is_token_string(p, 'return', pos) {
-      tokens << new_token(.reserved, 'return', line, lpos)
-      pos += 6
-      lpos += 6
-      continue
-    }
+    reserves := ['return', 'sizeof', 'if', 'else', 'while', 'for', 'break', 'continue', 'struct', 'const', 'int', 'char', 'short', 'long']
 
-    if is_token_string(p, 'sizeof', pos) {
-      tokens << new_token(.reserved, 'sizeof', line, lpos)
-      pos += 6
-      lpos += 6
-      continue
-    }
-
-    if is_token_string(p, 'if', pos) {
-      tokens << new_token(.reserved, 'if', line, lpos)
-      pos += 2
-      lpos += 2
-      continue
-    }
-
-    if is_token_string(p, 'else', pos) {
-      tokens << new_token(.reserved, 'else', line, lpos)
-      pos += 4
-      lpos += 4
-      continue
-    }
-
-    if is_token_string(p, 'while', pos) {
-      tokens << new_token(.reserved, 'while', line, lpos)
-      pos += 5
-      lpos += 5
-      continue
-    }
-
-    if is_token_string(p, 'for', pos) {
-      tokens << new_token(.reserved, 'for', line, lpos)
-      pos += 3
-      lpos += 3
-      continue
-    }
-
-    if is_token_string(p, 'struct', pos) {
-      tokens << new_token(.reserved, 'struct', line, lpos)
-      pos += 6
-      lpos += 6
-      continue
-    }
-
-    if is_token_string(p, 'const', pos) {
-      tokens << new_token(.reserved, 'const', line, lpos)
-      pos += 5
-      lpos += 5
-      continue
-    }
-
-    if is_token_string(p, 'int', pos) {
-      tokens << new_token(.reserved, 'int', line, lpos)
-      pos += 3
-      lpos += 3
-      continue
-    }
-
-    if is_token_string(p, 'char', pos) {
-      tokens << new_token(.reserved, 'char', line, lpos)
-      pos += 4
-      lpos += 4
-      continue
-    }
-
-    if is_token_string(p, 'short', pos) {
-      tokens << new_token(.reserved, 'short', line, lpos)
-      pos += 5
-      lpos += 5
-      continue
-    }
-
-    if is_token_string(p, 'long', pos) {
-      tokens << new_token(.reserved, 'long', line, lpos)
-      pos += 4
-      lpos += 4
-      continue
+    for res in reserves {
+      if is_token_string(p, res, pos) {
+        tokens << new_token(.reserved, res, line, lpos)
+        pos += res.len
+        lpos += res.len
+        goto cont
+      }
     }
 
     if pos + 1 < p.len && (p.substr(pos, pos+2) in ['==', '!=', '>=', '<=', '++', '--', '->']) {
@@ -217,6 +144,7 @@ fn tokenize(p string) []Tok {
     }
 
     parse_err('$line:$lpos: Cannot tokenize')
+cont:
   }
 
   tokens << new_token(.eof, '', line, lpos)

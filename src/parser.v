@@ -6,6 +6,7 @@ mut:
   pos int
   code map[string]Funcwrap
   ifnum int
+  genifnum []int
   curfn &Function
   curbl []Nodewrap
   global map[string]Lvarwrap

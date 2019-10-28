@@ -30,12 +30,14 @@ fn (p mut Parser) consume_type() (bool, &Type, string) {
 }
 
 fn (p mut Parser) consume_type_base() (bool, &Type) {
-  token := p.tokens[p.pos]
+  mut token := p.tokens[p.pos]
   mut typ := &Type{}
   if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char', 'struct', 'const']) {
     return false, typ
   }
-  for p.consume('const') {}
+  for p.consume('const') {
+    token = p.tokens[p.pos]
+  }
   if token.str == 'struct'{
     typ = p.consume_type_struct()
   } else {
