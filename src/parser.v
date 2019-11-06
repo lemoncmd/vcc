@@ -54,6 +54,7 @@ enum Nodekind {
   ifelse
   forn
   while
+  do
   brk
   cont
   block
@@ -217,7 +218,7 @@ fn (p Parser) new_node_with_all(kind Nodekind, first, cond, left, right &Node, n
 
 fn (p Parser) new_node_num(num int) &Node {
   node := &Node{
-    kind:Nodekind.num
+    kind:.num
     num:num
     offset:0
   }
@@ -226,7 +227,7 @@ fn (p Parser) new_node_num(num int) &Node {
 
 fn (p Parser) new_node_string(str string, id int) &Node {
   node := &Node{
-    kind:Nodekind.string
+    kind:.string
     offset:id
     name:str
   }
@@ -235,7 +236,7 @@ fn (p Parser) new_node_string(str string, id int) &Node {
 
 fn (p Parser) new_node_lvar(offset int, typ &Type) &Node {
   node := &Node{
-    kind:Nodekind.lvar
+    kind:.lvar
     offset:offset
     typ:typ
   }
@@ -244,7 +245,7 @@ fn (p Parser) new_node_lvar(offset int, typ &Type) &Node {
 
 fn (p Parser) new_node_gvar(offset int, typ &Type, name string) &Node {
   node := &Node{
-    kind:Nodekind.gvar
+    kind:.gvar
     offset:offset
     typ:typ
     name:name
@@ -389,7 +390,7 @@ fn (p mut Parser) function(name string, typ &Type) &Function {
   mut content := p.new_node(.block, &Node{}, &Node{})
   p.curbl << Nodewrap{content}
   for lvar in lvars {
-    content.locals << voidptr(lvar)
+    content.locals << voidptr(lvar.val)
   }
   p.block_without_curbl(mut content)
   p.curbl.delete(p.curbl.len-1)
@@ -477,6 +478,15 @@ fn (p mut Parser) stmt() &Node {
     p.expect(')')
     stmt := p.stmt()
     node = p.new_node_with_cond(.while, expr, stmt, &Node{}, p.ifnum)
+    p.ifnum++
+  } else if p.consume('do') {
+    stmt := p.stmt()
+    p.expect('while')
+    p.expect('(')
+    expr := p.expr()
+    p.expect(')')
+    p.expect(';')
+    node = p.new_node_with_cond(.do, expr, stmt, &Node{}, p.ifnum)
     p.ifnum++
   } else if p.consume('break') {
     node = p.new_node(.brk, &Node{}, &Node{})

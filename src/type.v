@@ -128,7 +128,7 @@ fn (p mut Parser) consume_type_struct() &Type {
     }
   }
   if is_decl {
-    mut strc := &Struct{name:name, kind:Structkind.strc}
+    mut strc := &Struct{name:name, kind:.strc}
     for !p.consume('}') {
       is_dec, typ_base := p.consume_type_base()
       if is_dec {
@@ -200,7 +200,7 @@ fn (typ mut Type) merge(typ2 &Type) {
 }
 
 fn (typ Type) is_int() bool {
-  return typ.kind.last() in [Typekind.char, .short, .int, .long, .ll]
+  return typ.kind.last() in [.char, .short, .int, .long, .ll]
 }
 
 fn (typ Type) is_ptr() bool {

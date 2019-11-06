@@ -5,6 +5,61 @@ const (
   Reg4 = ['edi', 'esi', 'edx', 'ecx', 'r8d', 'r9d']
 )
 
+fn (p mut Parser) gen_main() {
+  println('.intel_syntax noprefix')
+  println('.data')
+
+  for name, _gvar in p.global {
+    gvar := _gvar.val
+    size := gvar.typ.size()
+    println('$name:')
+    println('  .zero $size')
+  }
+
+  for i, _node in p.strs {
+    node := _node.val
+    offset := node.offset
+    content := node.name
+    println('.L.C.$offset:')
+    println('  .string "$content"')
+  }
+
+  println('.text')
+
+  for name, _func in p.code {
+    func := _func.val
+    p.curfn = func
+    offset := align(p.curfn.offset, 16)
+
+    println('.global $name')
+    println('$name:')
+    println('  push rbp')
+    println('  mov rbp, rsp')
+    println('  sub rsp, $offset')
+
+    mut fnargs := func.args
+    for i := 0; i < func.num; i++ {
+      reg := match fnargs.left.typ.size() {
+        4 {Reg4[i]}
+        8 {Regs[i]}
+        else {'none'}
+      }
+      if reg == 'none' {
+        parse_err('Invalid type in arg of function $name')
+      }
+      println('  mov [rbp-${fnargs.left.offset}], $reg')
+      fnargs = fnargs.right
+    }
+
+    p.gen(func.content)
+
+    println('.Lreturn$name:')
+    println('  mov rsp, rbp')
+    println('  pop rbp')
+    println('  ret')
+  }
+}
+
 fn (p mut Parser) gen_lval(node &Node) {
   if node.kind != .lvar && node.kind != .deref {
     parse_err('Assignment Error: left value is invalid')
@@ -38,12 +93,12 @@ fn (p Parser) gen_inc(kind Nodekind, typ &Type){
   if typ.kind.last() == .ary {
     parse_err('you cannot inc/decrement array')
   }
-  cmd := if kind in [Nodekind.incb, .incf] {
+  cmd := if kind in [.incb, .incf] {
     'add'
   } else {
     'sub'
   }
-  if kind in [Nodekind.incb, .decb] {
+  if kind in [.incb, .decb] {
     match typ.size() {
       1 {println('  movsx rdx, byte ptr [rax]')}
       2 {println('  movsx rdx, word ptr [rax]')}
@@ -65,7 +120,7 @@ fn (p Parser) gen_inc(kind Nodekind, typ &Type){
     size := typ.reduce().size()
     println('  $cmd [rax], $size')
   }
-  if kind in [Nodekind.incf, .decf] {
+  if kind in [.incf, .decf] {
     match typ.size() {
       1 {println('  movsx rdx, byte ptr [rax]')}
       2 {println('  movsx rdx, word ptr [rax]')}
@@ -188,6 +243,20 @@ fn (p mut Parser) gen(node &Node) {
       p.gen(node.left)
       p.genifnum.delete(p.genifnum.len-1)
       println('.Lcont${node.num}:')
+      println('  jmp .Lbegin${node.num}')
+      println('.Lend${node.num}:')
+      return
+    }
+    .do {
+      println('.Lbegin${node.num}:')
+      p.genifnum << node.num
+      p.gen(node.left)
+      p.genifnum.delete(p.genifnum.len-1)
+      println('.Lcont${node.num}:')
+      p.gen(node.cond)
+      println('  pop rax')
+      println('  cmp rax, 0')
+      println('  je .Lend${node.num}')
       println('  jmp .Lbegin${node.num}')
       println('.Lend${node.num}:')
       return

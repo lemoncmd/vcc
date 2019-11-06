@@ -21,7 +21,7 @@ fn new_token(token Token, s string, line, pos int) Tok {
 
 fn is_token_string(p, needle string, pos int) bool {
   len := needle.len
-  if pos + len <= p.len && p.substr(pos, pos + len) == needle &&
+  if pos + len <= p.len && p[pos..pos+len] == needle &&
      !p[pos + len].is_letter() && !p[pos + len].is_digit() && p[pos + len] != `_` {
     return true
   } else {
@@ -49,14 +49,14 @@ fn tokenize(p string) []Tok {
       continue
     }
 
-    if pos + 2 <= p.len && p.substr(pos, pos + 2) == '//' {
+    if pos + 2 <= p.len && p[pos..pos+2] == '//' {
       for p[pos] != `\n` || pos < p.len {
         pos++
       }
       continue
     }
 
-    if pos + 2 <= p.len && p.substr(pos, pos + 2) == '/*' {
+    if pos + 2 <= p.len && p[pos..pos+2] == '/*' {
       pos += 3
       lpos += 3
       for pos < p.len && !(p[pos-1] == `*` && p[pos] == `/`) {
@@ -72,7 +72,14 @@ fn tokenize(p string) []Tok {
       continue
     }
 
-    reserves := ['return', 'sizeof', 'if', 'else', 'while', 'for', 'break', 'continue', 'struct', 'const', 'int', 'char', 'short', 'long']
+    reserves := [
+      '_Bool', '_Complex', '_Imaginary',
+      'auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',
+      'double', 'else', 'enum', 'extern', 'float', 'for', 'goto', 'if',
+      'inline', 'int', 'long', 'register', 'restrict', 'return', 'signed',
+      'sizeof', 'short', 'static', 'struct', 'switch', 'typedef', 'union',
+      'unsigned', 'void', 'volatile', 'while'
+    ]
 
     for res in reserves {
       if is_token_string(p, res, pos) {
@@ -83,8 +90,8 @@ fn tokenize(p string) []Tok {
       }
     }
 
-    if pos + 1 < p.len && (p.substr(pos, pos+2) in ['==', '!=', '>=', '<=', '++', '--', '->']) {
-      tokens << new_token(.reserved, p.substr(pos, pos+2), line, lpos)
+    if pos + 1 < p.len && (p[pos..pos+2] in ['==', '!=', '>=', '<=', '&&', '||', '++', '--', '->', '<<', '>>', '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=']) {
+      tokens << new_token(.reserved, p[pos..pos+2], line, lpos)
       pos += 2
       lpos += 2
       continue
@@ -117,7 +124,7 @@ fn tokenize(p string) []Tok {
           lpos = 0
         }
       }
-      tokens << new_token(.string, p.substr(start_pos, pos).replace('\\\n', ''), line, lpos)
+      tokens << new_token(.string, p[start_pos..pos].replace('\\\n', ''), line, lpos)
       pos++
       lpos++
       continue
@@ -129,7 +136,7 @@ fn tokenize(p string) []Tok {
         pos++
         lpos++
       }
-      tokens << new_token(.num, p.substr(start_pos, pos), line, lpos)
+      tokens << new_token(.num, p[start_pos..pos], line, lpos)
       continue
     }
 
@@ -139,7 +146,7 @@ fn tokenize(p string) []Tok {
         pos++
         lpos++
       }
-      tokens << new_token(.ident, p.substr(start_pos, pos), line, lpos)
+      tokens << new_token(.ident, p[start_pos..pos], line, lpos)
       continue
     }
 
