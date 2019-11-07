@@ -53,7 +53,7 @@ fn (p mut Parser) gen_main() {
 
     p.gen(func.content)
 
-    println('.Lreturn$name:')
+    println('.L.return.$name:')
     println('  mov rsp, rbp')
     println('  pop rbp')
     println('  ret')
@@ -162,7 +162,7 @@ fn (p mut Parser) gen(node &Node) {
     .ret {
       p.gen(node.left)
       println('  pop rax')
-      println('  jmp .Lreturn${p.curfn.name}')
+      println('  jmp .L.return.${p.curfn.name}')
       return
     }
     .addr {
@@ -200,65 +200,65 @@ fn (p mut Parser) gen(node &Node) {
       p.gen(node.cond)
       println('  pop rax')
       println('  cmp rax, 0')
-      println('  je .Lend${node.num}')
+      println('  je .L.end.${node.num}')
       p.gen(node.left)
-      println('.Lend${node.num}:')
+      println('.L.end.${node.num}:')
       return
     }
     .ifelse {
       p.gen(node.cond)
       println('  pop rax')
       println('  cmp rax, 0')
-      println('  je .Lelse${node.num}')
+      println('  je .L.else.${node.num}')
       p.gen(node.left)
-      println('  jmp .Lend${node.num}')
-      println('.Lelse${node.num}:')
+      println('  jmp .L.end.${node.num}')
+      println('.L.else.${node.num}:')
       p.gen(node.right)
-      println('.Lend${node.num}:')
+      println('.L.end.${node.num}:')
       return
     }
     .forn {
       p.gen(node.first)
-      println('.Lbegin${node.num}:')
+      println('.L.begin.${node.num}:')
       p.gen(node.cond)
       println('  pop rax')
       println('  cmp rax, 0')
-      println('  je .Lend${node.num}')
+      println('  je .L.end.${node.num}')
       p.genifnum << node.num
       p.gen(node.left)
       p.genifnum.delete(p.genifnum.len-1)
-      println('.Lcont${node.num}:')
+      println('.L.cont.${node.num}:')
       p.gen(node.right)
-      println('  jmp .Lbegin${node.num}')
-      println('.Lend${node.num}:')
+      println('  jmp .L.begin.${node.num}')
+      println('.L.end.${node.num}:')
       return
     }
     .while {
-      println('.Lbegin${node.num}:')
+      println('.L.begin.${node.num}:')
       p.gen(node.cond)
       println('  pop rax')
       println('  cmp rax, 0')
-      println('  je .Lend${node.num}')
+      println('  je .L.end.${node.num}')
       p.genifnum << node.num
       p.gen(node.left)
       p.genifnum.delete(p.genifnum.len-1)
-      println('.Lcont${node.num}:')
-      println('  jmp .Lbegin${node.num}')
-      println('.Lend${node.num}:')
+      println('.L.cont.${node.num}:')
+      println('  jmp .L.begin.${node.num}')
+      println('.L.end.${node.num}:')
       return
     }
     .do {
-      println('.Lbegin${node.num}:')
+      println('.L.begin.${node.num}:')
       p.genifnum << node.num
       p.gen(node.left)
       p.genifnum.delete(p.genifnum.len-1)
-      println('.Lcont${node.num}:')
+      println('.L.cont.${node.num}:')
       p.gen(node.cond)
       println('  pop rax')
       println('  cmp rax, 0')
-      println('  je .Lend${node.num}')
-      println('  jmp .Lbegin${node.num}')
-      println('.Lend${node.num}:')
+      println('  je .L.end.${node.num}')
+      println('  jmp .L.begin.${node.num}')
+      println('.L.end.${node.num}:')
       return
     }
     .brk {
@@ -266,7 +266,7 @@ fn (p mut Parser) gen(node &Node) {
         parse_err('cannot break not in loop statement')
       }
       ifnum := p.genifnum.last()
-      println('  jmp .Lend$ifnum')
+      println('  jmp .L.end.$ifnum')
       return
     }
     .cont {
@@ -274,7 +274,19 @@ fn (p mut Parser) gen(node &Node) {
         parse_err('cannot continue not in loop statement')
       }
       ifnum := p.genifnum.last()
-      println('  jmp .Lcont$ifnum')
+      println('  jmp .L.cont.$ifnum')
+      return
+    }
+    .label {
+      println('.L.label.${node.name}:')
+      p.gen(node.left)
+      return
+    }
+    .gozu {
+      if !(node.name in p.curfn.labels) {
+        parse_err('${node.name} used in goto but not declared')
+      }
+      println('  jmp .L.label.${node.name}')
       return
     }
     .num {
@@ -323,16 +335,16 @@ fn (p mut Parser) gen(node &Node) {
       }
       println('  mov rax, rsp')
       println('  and rax, 15')
-      println('  jnz .Lcall${p.ifnum}')
+      println('  jnz .L.call.${p.ifnum}')
       println('  mov rax, 0')
       println('  call ${node.name}')
-      println('  jmp .Lend${p.ifnum}')
-      println('.Lcall${p.ifnum}:')
+      println('  jmp .L.end.${p.ifnum}')
+      println('.L.call.${p.ifnum}:')
       println('  sub rsp, 8')
       println('  mov rax, 0')
       println('  call ${node.name}')
       println('  add rsp, 8')
-      println('.Lend${p.ifnum}:')
+      println('.L.end.${p.ifnum}:')
       println('  push rax')
       p.ifnum++
       return

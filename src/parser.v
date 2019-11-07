@@ -58,6 +58,8 @@ enum Nodekind {
   brk
   cont
   block
+  label
+  gozu
   call
   args
   fnargs
@@ -78,6 +80,7 @@ mut:
   args &Node
   content &Node
   offset int
+  labels []string
 }
 
 struct Node {
@@ -124,6 +127,17 @@ fn (p Parser) look_for(op string) bool {
     return false
   }
   return true
+}
+
+fn (p mut Parser) look_for_label() bool {
+  is_ident, _ := p.consume_ident()
+  if !is_ident {
+    return false
+  } else {
+    is_label := p.look_for(':')
+    p.pos--
+    return is_label
+  }
 }
 
 fn (p mut Parser) consume(op string) bool {
@@ -494,8 +508,21 @@ fn (p mut Parser) stmt() &Node {
   } else if p.consume('continue') {
     node = p.new_node(.cont, &Node{}, &Node{})
     p.expect(';')
+  } else if p.consume('goto') {
+    node = p.new_node(.gozu, &Node{}, &Node{})
+    node.name = p.expect_ident()
+    p.expect(';')
   } else if p.consume(';') {
     node = p.new_node(.nothing, &Node{}, &Node{})
+  } else if p.look_for_label() {
+    name := p.expect_ident()
+    if name in p.curfn.labels {
+      parse_err('label $name is already declared')
+    }
+    p.curfn.labels << name
+    p.expect(':')
+    node = p.new_node(.label, p.stmt(), &Node{})
+    node.name = name
   } else {
     node = p.expr()
     p.expect(';')
