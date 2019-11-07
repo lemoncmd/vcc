@@ -1,5 +1,6 @@
 fn try(expected int, input string) {
-  system('./vcc \' $input \' > tmp.s')
+  write_file('tmp.c', input)
+  system('./vcc tmp.c > tmp.s')
   system('gcc -o tmp tmp.s tmp2.o')
   actual := system('./tmp')
   if actual == expected {
@@ -84,7 +85,7 @@ try(3 , 'int main(){for(;;)break;return 3;}')
 try(45, 'int main(){int a=0; for(int i=0;;i++){if(i<10){a=a+i;continue;}else{break;}}return a;}')
 try(10, 'int main(){int a=0; while(++a<10);return a;}')
 try(55, 'int main(){int a=0, i=0; do{i++;a=a+i;}while(i<10);return a;}')
-try(54, 'int main(){int a=0;for(int i=0;i<10;i++){for(int j=0;j<10;j++){a=a+i;if(a>52){goto hoge;}}}}hoge:return a;')
+try(54, 'int main(){int a=0;for(int i=0;i<10;i++){for(int j=0;j<10;j++){a=a+i;if(a>52){goto hoge;}}}}hoge:return a;}')
 
 println('OK')
 }

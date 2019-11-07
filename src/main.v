@@ -14,12 +14,24 @@ fn unexp_err(token Tok, s string) {
 
 fn main(){
   args := os.args
-  if args.len != 2 {
-    eprintln('The number of arguments is not correct. It must be one.')
+  mut program := ''
+  if args.len < 2 {
+    eprintln('The number of arguments is not correct.')
     exit(1)
   }
-
-  program := args[1]
+  if args[1] == '-' {
+    if args.len < 3 {
+      eprintln('There is no input string')
+      exit(1)
+    }
+    program = args[2]
+  } else {
+    cont := os.read_file(args[1]) or {
+      eprintln(err)
+      exit(1)
+    }
+    program = cont
+  }
 
   mut parser := Parser{
     tokens:tokenize(program),
