@@ -29,6 +29,16 @@ fn is_token_string(p, needle string, pos int) bool {
   }
 }
 
+fn hex_to_num(b byte) int {
+  if b >= `0` && b <= `9` {
+    return int(b - `0`)
+  }
+  if b >= `A` && b <= `F` {
+    return int(b - `A` + 10)
+  }
+  return int(b - `a` + 10)
+}
+
 fn tokenize(p string) []Tok {
   mut tokens := []Tok
   mut pos := 0
@@ -125,6 +135,71 @@ fn tokenize(p string) []Tok {
         }
       }
       tokens << new_token(.string, p[start_pos..pos].replace('\\\n', ''), line, lpos)
+      pos++
+      lpos++
+      continue
+    }
+
+    if p[pos] == `'` {
+      pos+=2
+      lpos+2
+      mut num := 0
+      if p[pos-1] == `\\` {
+        num = match p[pos] {
+          `0` {0}
+          `a` {7}
+          `b` {8}
+          `f` {12}
+          `n` {10}
+          `r` {13}
+          `t` {9}
+          `v` {11}
+          `x` {256}
+          `0`, `1`, `2`, `3`, `4`, `5`, `6`, `7` {257}
+          else {int(p[pos])}
+        }
+        match num {
+          256 {
+            pos++
+            lpos++
+            if !p[pos].is_hex_digit() {parse_err('$line:$lpos: Expected hex digit')}
+            num = hex_to_num(p[pos])
+            if p[pos+1] != `'` {
+              pos++
+              lpos++
+              if !p[pos].is_hex_digit() {parse_err('$line:$lpos: Expected hex digit')}
+              num = 16*num + hex_to_num(p[pos])
+            }
+            if num > 127 {num -= 256}
+          }
+          257 {
+            num = int(p[pos] - `0`)
+            if p[pos+1] != `'` {
+              pos++
+              lpos++
+              if !p[pos].is_oct_digit() {parse_err('$line:$lpos: Expected oct digit')}
+              num = 8*num + int(p[pos] - `0`)
+              if p[pos+1] != `'` {
+                pos++
+                lpos++
+                if !p[pos].is_oct_digit() {parse_err('$line:$lpos: Expected oct digit')}
+                num = 8*num + int(p[pos] - `0`)
+              }
+            }
+            if num > 255 {parse_err('$line:$lpos: Octal out of range')}
+            if num > 127 {num -= 256}
+          }
+        }
+        pos++
+        lpos++
+      } else {
+        num = int(p[pos-1])
+      }
+      tokens << new_token(.num, num.str(), line, lpos)
+      if p[pos] != `'` {
+        got := p[pos].str()
+        unexp_err(tokens.last(), 'Expected \' but got $got')
+      }
       pos++
       lpos++
       continue
