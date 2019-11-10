@@ -36,6 +36,7 @@ fn main(){
   mut parser := Parser{
     tokens:tokenize(program),
     pos:0
+    statics:1972
   }
   parser.program()
   parser.gen_main()

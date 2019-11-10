@@ -13,6 +13,7 @@ mut:
   glstrc map[string]Strcwrap
   str_offset int
   strs []Nodewrap
+  statics int
 }
 
 struct Funcwrap {
@@ -81,6 +82,7 @@ mut:
   content &Node
   offset int
   labels []string
+  is_static bool
 }
 
 struct Node {
@@ -104,6 +106,7 @@ struct Lvar {
   typ &Type
   is_global bool
 mut:
+  is_static bool
   offset int
 }
 
@@ -343,6 +346,7 @@ fn (p mut Parser) program() {
 }
 
 fn (p mut Parser) top() {
+  is_static := p.consume('static')
   is_typ, mut typ := p.consume_type_base()
   if !is_typ {
     parse_err('expected type')
@@ -350,14 +354,18 @@ fn (p mut Parser) top() {
   p.consume_type_front(mut typ)
   name := p.expect_ident()
   if p.consume('(') {
-    p.code[name] = Funcwrap{p.function(name, typ)}
+    mut func := p.function(name, typ)
+    func.is_static = is_static
+    p.code[name] = Funcwrap{func}
   } else {
     p.consume_type_back(mut typ)
     p.expect(';')
     if name in p.global {
       parse_err('duplicated global variable $name')
     }
-    p.global[name] = Lvarwrap{p.new_gvar(name, typ)}
+    mut gvar := p.new_gvar(name, typ)
+    gvar.is_static = is_static
+    p.global[name] = Lvarwrap{gvar}
   }
 }
 
@@ -544,6 +552,7 @@ fn (p mut Parser) block() &Node {
 fn (p mut Parser) block_without_curbl(node mut Node) {
   p.expect('{')
   for !p.consume('}') {
+    is_static := p.consume('static')
     is_dec, typ_base := p.consume_type_base()
     if is_dec {
       mut first := true
@@ -557,15 +566,32 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
         p.consume_type_front(mut typ)
         name := p.expect_ident()
         p.consume_type_back(mut typ)
-        offset := p.declare(typ, name)
-        if p.consume('=') {
-          lvar := p.new_node_lvar(offset, typ)
-          mut assign := p.new_node(.assign, lvar, p.expr())
-          assign.add_type()
-          node.code << voidptr(assign)
+        if is_static {
+          is_lvar, _, is_curbl := p.find_lvar(name)
+          if is_lvar && is_curbl {
+            parse_err('$name is already declared')
+          }
+          p.statics++
+          offset := p.statics
+          mut lvar := p.new_lvar(name, typ, offset)
+          lvar.is_static = true
+          p.global['$name\.$offset'] = Lvarwrap{lvar}
+          mut block := p.curbl.last()
+          block.val.locals << voidptr(lvar)
+        } else {
+          offset := p.declare(typ, name)
+          if p.consume('=') {
+            lvar := p.new_node_lvar(offset, typ)
+            mut assign := p.new_node(.assign, lvar, p.expr())
+            assign.add_type()
+            node.code << voidptr(assign)
+          }
         }
       }
     } else {
+      if is_static {
+        parse_err('Expected type')
+      }
       node.code << voidptr(p.stmt())
     }
   }
@@ -806,6 +832,8 @@ fn (p mut Parser) primary() &Node {
   }
   node := if lvar.is_global {
     p.new_node_gvar(lvar.offset, lvar.typ, name)
+  } else if lvar.is_static {
+    p.new_node_gvar(lvar.offset, lvar.typ, '$name\.$lvar.offset')
   } else {
     p.new_node_lvar(lvar.offset, lvar.typ)
   }
