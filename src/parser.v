@@ -46,6 +46,7 @@ enum Nodekind {
   bitand
   bitor
   bitxor
+  bitnot
   shr
   shl
   eq
@@ -835,6 +836,8 @@ fn (p mut Parser) unary() &Node {
     return p.unary()
   } else if p.consume('-') {
     return p.new_node(.sub, p.new_node_num(0), p.unary())
+  } else if p.consume('~') {
+    return p.new_node(.bitnot, p.unary(), &Node{})
   }
   return p.postfix()
 }

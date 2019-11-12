@@ -236,6 +236,13 @@ fn (p mut Parser) gen(node &Node) {
       p.gen_inc(node.kind, node.left.typ)
       return
     }
+    .bitnot {
+      p.gen(node.left)
+      println('  pop rax')
+      println('  not rax')
+      println('  push rax')
+      return
+    }
     .block {
       for i in node.code {
         code := &Node(i)
