@@ -239,8 +239,18 @@ fn (node mut Node) add_type() {
       typ.kind << Typekind.int
       node.typ = typ
     }
-    .mul, .div, .mod, .bitand, .bitor, .bitxor, .ifelse {
+    .mul, .div, .mod, .bitand, .bitor, .bitxor {
       bigtyp := type_max(node.left.typ, node.right.typ)
+      node.typ = bigtyp.clone()
+    }
+    .ifelse {
+      bigtyp := if isnil(node.left.typ) {
+        type_max(node.cond.typ, node.right.typ)
+      } else if isnil(node.right.typ) {
+        type_max(node.left.typ, node.cond.typ)
+      } else {
+        type_max(node.left.typ, node.right.typ)
+      }
       node.typ = bigtyp.clone()
     }
     .incb, .decb, .incf, .decf, .shl, .shl, .bitnot {
