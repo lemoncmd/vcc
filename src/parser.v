@@ -37,6 +37,7 @@ mut:
 enum Nodekind {
   nothing
   assign
+  calcassign
   add
   sub
   mul
@@ -95,6 +96,7 @@ mut:
   num int
   offset int
   name string
+  secondkind Nodekind
   code []voidptr
   typ &Type
   locals []voidptr // []&Lvar
@@ -164,6 +166,15 @@ fn (p mut Parser) consume_ident() (bool, string) {
 fn (p mut Parser) consume_string() (bool, string) {
   token := p.tokens[p.pos]
   if token.kind == .string {
+    p.pos++
+    return true, token.str
+  }
+  return false, ''
+}
+
+fn (p mut Parser) consume_any(ops []string) (bool, string) {
+  token := p.tokens[p.pos]
+  if token.kind == .reserved && token.str in ops {
     p.pos++
     return true, token.str
   }
@@ -606,6 +617,19 @@ fn (p mut Parser) assign() &Node {
 
   if p.consume('=') {
     node = p.new_node(.assign, node, p.assign())
+  } else {
+    is_assign, op := p.consume_any(['+=', '-=', '*=', '/=', '%='])
+    if is_assign {
+      node = p.new_node(.calcassign, node, p.assign())
+      node.secondkind = match op {
+        '+=' {Nodekind.add}
+        '-=' {Nodekind.sub}
+        '*=' {Nodekind.mul}
+        '/=' {Nodekind.div}
+        '%=' {Nodekind.mod}
+        else {.nothing}
+      }
+    }
   }
   return node
 }

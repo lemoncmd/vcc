@@ -232,7 +232,7 @@ fn (node mut Node) add_type() {
   mut typ := &Type{}
 
   match(node.kind) {
-    .assign {
+    .assign, .calcassign {
       node.typ = node.left.typ
     }
     .add, .sub, .eq, .ne, .gt, .ge, .num {

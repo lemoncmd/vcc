@@ -329,6 +329,42 @@ fn (p mut Parser) gen(node &Node) {
       p.gen_store(node.typ)
       return
     }
+    .calcassign {
+      if node.left.typ.kind.last() == .ary {
+        parse_err('Assignment Error: array body is not assignable')
+      }
+      if node.left.kind == .lvar {
+        p.gen_lval(node.left)
+      } else {
+        p.gen_gval(node.left)
+      }
+      p.gen(node.right)
+      p.gen(node.left)
+      println('  pop rax')
+      println('  pop rdi')
+
+      match node.secondkind {
+        .add {println('  add rax, rdi')}
+        .sub {println('  sub rax, rdi')}
+        .mul {println('  imul rax, rdi')}
+        .div {
+          println('  cqo')
+          println('  idiv rdi')
+        }
+        .mod {
+          println('  cqo')
+          println('  idiv rdi')
+          println('  mov rax rdx')
+        }
+        else {
+          parse_err('This error should not happen because of not supported assignment with calculation')
+        }
+      }
+
+      println('  push rax')
+      p.gen_store(node.typ)
+      return
+    }
     .call {
       mut args := node.left
       for i in [0].repeat(node.num) {
