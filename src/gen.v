@@ -1,8 +1,10 @@
 module main
 
 const (
-  Regs = ['rdi', 'rsi', 'rdx', 'rcx', 'r8', 'r9']
+  Reg1 = ['dil', 'sil', 'dl', 'cl', 'r8b', 'r9b']
+  Reg2 = ['di', 'si', 'dx', 'cx', 'r8w', 'r9w']
   Reg4 = ['edi', 'esi', 'edx', 'ecx', 'r8d', 'r9d']
+  Regs = ['rdi', 'rsi', 'rdx', 'rcx', 'r8', 'r9']
 )
 
 fn (p mut Parser) gen_main() {
@@ -45,6 +47,8 @@ fn (p mut Parser) gen_main() {
     mut fnargs := func.args
     for i := 0; i < func.num; i++ {
       reg := match fnargs.left.typ.size() {
+        1 {Reg1[i]}
+        2 {Reg2[i]}
         4 {Reg4[i]}
         8 {Regs[i]}
         else {'none'}
