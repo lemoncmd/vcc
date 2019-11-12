@@ -233,17 +233,17 @@ fn (node mut Node) add_type() {
 
   match(node.kind) {
     .assign, .calcassign {
-      node.typ = node.left.typ
+      node.typ = node.left.typ.clone()
     }
     .add, .sub, .eq, .ne, .gt, .ge, .num {
       typ.kind << Typekind.int
       node.typ = typ
     }
-    .mul, .div, .mod {
+    .mul, .div, .mod, .bitand, .bitor, .bitxor {
       bigtyp := type_max(node.left.typ, node.right.typ)
       node.typ = bigtyp.clone()
     }
-    .incb, .decb, .incf, .decf {
+    .incb, .decb, .incf, .decf, .shl, .shl {
       node.typ = node.left.typ.clone()
     }
     .call {

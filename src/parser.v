@@ -43,6 +43,11 @@ enum Nodekind {
   mul
   div
   mod
+  bitand
+  bitor
+  bitxor
+  shr
+  shl
   eq
   ne
   gt
@@ -618,7 +623,7 @@ fn (p mut Parser) assign() &Node {
   if p.consume('=') {
     node = p.new_node(.assign, node, p.assign())
   } else {
-    is_assign, op := p.consume_any(['+=', '-=', '*=', '/=', '%='])
+    is_assign, op := p.consume_any(['+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<=', '>>='])
     if is_assign {
       node = p.new_node(.calcassign, node, p.assign())
       node.secondkind = match op {
@@ -627,6 +632,11 @@ fn (p mut Parser) assign() &Node {
         '*=' {Nodekind.mul}
         '/=' {Nodekind.div}
         '%=' {Nodekind.mod}
+        '&=' {Nodekind.bitand}
+        '|=' {Nodekind.bitor}
+        '^=' {Nodekind.bitxor}
+        '<<=' {Nodekind.shl}
+        '>>=' {Nodekind.shr}
         else {.nothing}
       }
     }
@@ -635,12 +645,51 @@ fn (p mut Parser) assign() &Node {
 }
 
 fn (p mut Parser) ternary() &Node {
-  mut node := p.equality()
+  mut node := p.bitor()
   if p.consume('?') {
     expr_true := p.ternary()
     p.expect(':')
     node = p.new_node_with_cond(.ifelse, node, expr_true, p.ternary(), p.ifnum)
     p.ifnum++
+  }
+  return node
+}
+
+fn (p mut Parser) bitor() &Node {
+  mut node := p.bitxor()
+
+  for {
+    if p.consume('|') {
+      node = p.new_node(.bitor, node, p.bitxor())
+    } else {
+      return node
+    }
+  }
+  return node
+}
+
+fn (p mut Parser) bitxor() &Node {
+  mut node := p.bitand()
+
+  for {
+    if p.consume('^') {
+      node = p.new_node(.bitxor, node, p.bitand())
+    } else {
+      return node
+    }
+  }
+  return node
+}
+
+fn (p mut Parser) bitand() &Node {
+  mut node := p.equality()
+
+  for {
+    if p.consume('&') {
+      node = p.new_node(.bitand, node, p.equality())
+    } else {
+      return node
+    }
   }
   return node
 }
@@ -661,7 +710,7 @@ fn (p mut Parser) equality() &Node {
 }
 
 fn (p mut Parser) relational() &Node {
-  mut node := p.add()
+  mut node := p.shift()
 
   for {
     if p.consume('>') {
@@ -672,6 +721,21 @@ fn (p mut Parser) relational() &Node {
       node = p.new_node(.gt, p.add(), node)
     } else if p.consume('<=') {
       node = p.new_node(.ge, p.add(), node)
+    } else {
+      return node
+    }
+  }
+  return node
+}
+
+fn (p mut Parser) shift() &Node {
+  mut node := p.add()
+
+  for {
+    if p.consume('<<') {
+      node = p.new_node(.shl, node, p.add())
+    } else if p.consume('>>') {
+      node = p.new_node(.shr, node, p.add())
     } else {
       return node
     }

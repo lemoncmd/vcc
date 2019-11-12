@@ -166,6 +166,44 @@ fn (p Parser) gen_store(typ &Type){
   println('  push rdi')
 }
 
+fn (p Parser) gen_calc(kind Nodekind) {
+  match kind {
+    .add {println('  add rax, rdi')}
+    .sub {println('  sub rax, rdi')}
+    .mul {println('  imul rax, rdi')}
+    .div {
+      println('  cqo')
+      println('  idiv rdi')
+    }
+    .mod {
+      println('  cqo')
+      println('  idiv rdi')
+      println('  mov rax, rdx')
+    }
+    .bitand {println('  and rax, rdi')}
+    .bitor  {println('  or rax, rdi')}
+    .bitxor {println('  xor rax, rdi')}
+    .shl {
+      println('  mov cl, dil')
+      println('  shl rax, cl')
+    }
+    .shr {
+      println('  mov cl, dil')
+      println('  sar rax, cl')
+    }
+    else {
+      println('  cmp rax, rdi')
+      match kind {
+        .eq {println('  sete al')}
+        .ne {println('  setne al')}
+        .gt {println('  setg al')}
+        .ge {println('  setge al')}
+      }
+      println('  movzb rax, al')
+    }
+  }
+}
+
 fn (p mut Parser) gen(node &Node) {
   match node.kind {
     .ret {
@@ -347,23 +385,7 @@ fn (p mut Parser) gen(node &Node) {
       println('  pop rax')
       println('  pop rdi')
 
-      match node.secondkind {
-        .add {println('  add rax, rdi')}
-        .sub {println('  sub rax, rdi')}
-        .mul {println('  imul rax, rdi')}
-        .div {
-          println('  cqo')
-          println('  idiv rdi')
-        }
-        .mod {
-          println('  cqo')
-          println('  idiv rdi')
-          println('  mov rax rdx')
-        }
-        else {
-          parse_err('This error should not happen because of not supported assignment with calculation')
-        }
-      }
+      p.gen_calc(node.secondkind)
 
       println('  push rax')
       p.gen_store(node.typ)
@@ -410,31 +432,7 @@ fn (p mut Parser) gen(node &Node) {
   println('  pop rdi')
   println('  pop rax')
 
-  match node.kind {
-    .add {println('  add rax, rdi')}
-    .sub {println('  sub rax, rdi')}
-    .mul {println('  imul rax, rdi')}
-    .div {
-      println('  cqo')
-      println('  idiv rdi')
-    }
-    .mod {
-      println('  cqo')
-      println('  idiv rdi')
-      println('  push rdx')
-      return
-    }
-    else {
-      println('  cmp rax, rdi')
-      match node.kind {
-        .eq {println('  sete al')}
-        .ne {println('  setne al')}
-        .gt {println('  setg al')}
-        .ge {println('  setge al')}
-      }
-      println('  movzb rax, al')
-    }
-  }
+  p.gen_calc(node.kind)
 
   println('  push rax')
 }

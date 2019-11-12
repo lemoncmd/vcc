@@ -100,6 +100,13 @@ fn tokenize(p string) []Tok {
       }
     }
 
+    if pos + 2 < p.len && (p[pos..pos+3] in ['<<=', '>>=']) {
+      tokens << new_token(.reserved, p[pos..pos+3], line, lpos)
+      pos += 3
+      lpos += 3
+      continue
+    }
+
     if pos + 1 < p.len && (p[pos..pos+2] in ['==', '!=', '>=', '<=', '&&', '||', '++', '--', '->', '<<', '>>', '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=']) {
       tokens << new_token(.reserved, p[pos..pos+2], line, lpos)
       pos += 2
