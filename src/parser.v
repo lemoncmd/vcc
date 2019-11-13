@@ -648,7 +648,7 @@ fn (p mut Parser) assign() &Node {
 fn (p mut Parser) ternary() &Node {
   mut node := p.logor()
   if p.consume('?') {
-    expr_true := p.ternary()
+    expr_true := p.expr()
     p.expect(':')
     node = p.new_node_with_cond(.ifelse, node, expr_true, p.ternary(), p.ifnum)
     p.ifnum++
@@ -661,7 +661,7 @@ fn (p mut Parser) logor() &Node {
 
   for {
     if p.consume('||') {
-      node = p.new_node_with_cond(.ifelse, node, &Node{}, p.logand(), p.ifnum)
+      node = p.new_node_with_cond(.ifelse, node, p.new_node_num(1), p.new_node(.ne, p.logand(), p.new_node_num(0)), p.ifnum)
       p.ifnum++
     } else {
       return node
@@ -675,7 +675,7 @@ fn (p mut Parser) logand() &Node {
 
   for {
     if p.consume('&&') {
-      node = p.new_node_with_cond(.ifelse, node, p.bitor(), &Node{}, p.ifnum)
+      node = p.new_node_with_cond(.ifelse, node, p.new_node(.ne, p.bitor(), p.new_node_num(0)), p.new_node_num(0), p.ifnum)
       p.ifnum++
     } else {
       return node
@@ -867,8 +867,7 @@ fn (p mut Parser) unary() &Node {
   } else if p.consume('~') {
     return p.new_node(.bitnot, p.unary(), &Node{})
   } else if p.consume('!') {
-    p.ifnum++
-    return p.new_node_with_cond(.ifelse, p.unary(), p.new_node_num(0), p.new_node_num(1), p.ifnum-1)
+    return p.new_node(.eq, p.unary(), p.new_node_num(0))
   }
   return p.postfix()
 }

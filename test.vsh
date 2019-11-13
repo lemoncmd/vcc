@@ -88,6 +88,7 @@ try(55, 'int main(){int a=0, i=0; do{i++;a=a+i;}while(i<10);return a;}')
 try(54, 'int main(){int a=0;for(int i=0;i<10;i++){for(int j=0;j<10;j++){a=a+i;if(a>52){goto hoge;}}}hoge:return a;}')
 try(1 , 'int main(){return \'b\' - \'\\n\' == \'X\';}')
 try(10, 'int main(){int a=0;for(int i=0;i<10;i++)a=pluser();return a;}int pluser(){static int hoge;hoge++;return hoge;}')
+try(0 , 'int main(){return ~-!0;}')
 
 println('OK')
 }
