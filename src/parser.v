@@ -7,8 +7,10 @@ mut:
   code map[string]Funcwrap
   ifnum int
   genifnum []int
+  gencontnum []int
   curfn &Function
   curbl []Nodewrap
+  cursw []Nodewrap
   global map[string]Lvarwrap
   glstrc map[string]Strcwrap
   str_offset int
@@ -63,6 +65,7 @@ enum Nodekind {
   forn
   while
   do
+  swich
   brk
   cont
   block
@@ -366,7 +369,7 @@ fn (p mut Parser) top() {
   is_static := p.consume('static')
   is_typ, mut typ := p.consume_type_base()
   if !is_typ {
-    parse_err('expected type')
+    p.token_err('Expected type')
   }
   p.consume_type_front(mut typ)
   name := p.expect_ident()
@@ -375,11 +378,11 @@ fn (p mut Parser) top() {
     func.is_static = is_static
     p.code[name] = Funcwrap{func}
   } else {
+    if name in p.global {
+      p.token_err('`$name` is already declared')
+    }
     p.consume_type_back(mut typ)
     p.expect(';')
-    if name in p.global {
-      parse_err('duplicated global variable $name')
-    }
     mut gvar := p.new_gvar(name, typ)
     gvar.is_static = is_static
     p.global[name] = Lvarwrap{gvar}
@@ -389,12 +392,12 @@ fn (p mut Parser) top() {
 fn (p mut Parser) fnargs() (&Node, []Lvarwrap, int) {
   is_typ, typ, name := p.consume_type()
   if !is_typ {
-    parse_err('Expected type')
+    p.token_err('Expected type')
   }
   mut lvar := p.new_lvar(name, typ, 0)
   is_lvar, _, is_curbl := p.find_lvar(name)
   if is_lvar && is_curbl {
-    parse_err('$name is already declared')
+    p.token_err('`$name` is already declared')
   }
 
   p.curfn.offset += typ.size()
@@ -440,7 +443,7 @@ fn (p mut Parser) function(name string, typ &Type) &Function {
 fn (p mut Parser) declare(typ &Type, name string) int {
   is_lvar, _, is_curbl := p.find_lvar(name)
   if is_lvar && is_curbl {
-    parse_err('$name is already declared')
+    p.token_err('$name is already declared')
   }
   p.curfn.offset += typ.size()
   p.curfn.offset = align(p.curfn.offset, typ.size())
@@ -527,6 +530,20 @@ fn (p mut Parser) stmt() &Node {
     p.expect(';')
     node = p.new_node_with_cond(.do, expr, stmt, &Node{}, p.ifnum)
     p.ifnum++
+  } else if p.consume('switch') {
+    p.expect('(')
+    expr := p.expr()
+    p.expect(')')
+    node = p.new_node_with_cond(.swich, expr, &Node{}, &Node{}, p.ifnum)
+    p.ifnum++
+    p.cursw << Nodewrap{node}
+    mut block := p.new_node(.block, &Node{}, &Node{})
+    block.secondkind = .swich
+    p.curbl << Nodewrap{block}
+    p.block_without_curbl(mut block)
+    p.curbl.delete(p.curbl.len-1)
+    p.cursw.delete(p.cursw.len-1)
+    node.left = block
   } else if p.consume('break') {
     node = p.new_node(.brk, &Node{}, &Node{})
     p.expect(';')
@@ -537,12 +554,35 @@ fn (p mut Parser) stmt() &Node {
     node = p.new_node(.gozu, &Node{}, &Node{})
     node.name = p.expect_ident()
     p.expect(';')
+  } else if p.consume('case') {
+    if (p.curbl.last()).val.secondkind != .swich {
+      p.token_err('`case` should be in switch block')
+    }
+    mut swblock := (p.cursw.last()).val
+    value := p.ternary()
+    p.expect(':')
+    num := swblock.num
+    id := swblock.offset
+    swblock.offset++
+    swblock.code << voidptr(value)
+    node = p.new_node(.label, p.stmt(), &Node{})
+    node.name = 'case.$num\.$id'
+  } else if p.consume('default') {
+    if (p.curbl.last()).val.secondkind != .swich {
+      p.token_err('`case` should be in switch block')
+    }
+    mut swblock := (p.cursw.last()).val
+    p.expect(':')
+    num := swblock.num
+    swblock.name = 'hasdefault'
+    node = p.new_node(.label, p.stmt(), &Node{})
+    node.name = 'default.$num'
   } else if p.consume(';') {
     node = p.new_node(.nothing, &Node{}, &Node{})
   } else if p.look_for_label() {
     name := p.expect_ident()
     if name in p.curfn.labels {
-      parse_err('label $name is already declared')
+      p.token_err('label `$name` is already declared')
     }
     p.curfn.labels << name
     p.expect(':')
@@ -586,7 +626,7 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
         if is_static {
           is_lvar, _, is_curbl := p.find_lvar(name)
           if is_lvar && is_curbl {
-            parse_err('$name is already declared')
+            p.token_err('`$name` is already declared')
           }
           p.statics++
           offset := p.statics
@@ -607,7 +647,7 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
       }
     } else {
       if is_static {
-        parse_err('Expected type')
+        p.token_err('Expected type')
       }
       node.code << voidptr(p.stmt())
     }
@@ -777,6 +817,7 @@ fn (p mut Parser) add() &Node {
 
   for {
     if p.consume('+') {
+      plus_token := p.tokens[p.pos]
       mut right := p.mul()
       node.add_type()
       right.add_type()
@@ -796,11 +837,12 @@ fn (p mut Parser) add() &Node {
       } else if node.typ.is_int() && right.typ.is_int() {
         typ = type_max(node.typ, right.typ).clone()
       } else {
-        parse_err('Operator + cannot add two pointers')
+        unexp_err(plus_token, 'Operator + cannot add two pointers')
       }
       node = p.new_node(.add, node, right)
       node.typ = typ
     } else if p.consume('-') {
+      minus_token := p.tokens[p.pos]
       mut right := p.mul()
       node.add_type()
       right.add_type()
@@ -821,7 +863,7 @@ fn (p mut Parser) add() &Node {
       } else if node.typ.is_int() && right.typ.is_int() {
         typ = type_max(node.typ, right.typ).clone()
       } else {
-        parse_err('Operator - cannot sub pointers from int')
+        unexp_err(minus_token, 'Operator - cannot subtract pointers from int')
       }
       node = p.new_node(.sub, node, right)
       node.typ = typ
@@ -833,20 +875,24 @@ fn (p mut Parser) add() &Node {
 }
 
 fn (p mut Parser) mul() &Node {
-  mut node := p.unary()
+  mut node := p.cast()
 
   for {
     if p.consume('*') {
-      node = p.new_node(.mul, node, p.unary())
+      node = p.new_node(.mul, node, p.cast())
     } else if p.consume('/') {
-      node = p.new_node(.div, node, p.unary())
+      node = p.new_node(.div, node, p.cast())
     } else if p.consume('%') {
-      node = p.new_node(.mod, node, p.unary())
+      node = p.new_node(.mod, node, p.cast())
     } else {
       return node
     }
   }
   return node
+}
+
+fn (p mut Parser) cast() &Node {
+  return p.unary()
 }
 
 fn (p mut Parser) unary() &Node {
@@ -898,9 +944,9 @@ fn (p mut Parser) postfix() &Node {
       typ.suffix = node.typ.suffix.clone()
       node = p.new_node(.mul, node, num)
     } else if node.typ.is_int() && right.typ.is_int() {
-      parse_err('either expression in a[b] should be pointer')
+      p.token_err('either expression in a[b] should be pointer')
     } else {
-      parse_err('both body and suffix are pointers in a[b] expression')
+      p.token_err('both body and suffix are pointers in a[b] expression')
     }
     node = p.new_node(.add, node, right)
     node.typ = typ
@@ -949,7 +995,7 @@ fn (p mut Parser) primary() &Node {
 
   is_lvar, lvar, _ := p.find_lvar(name)
   if !is_lvar {
-    parse_err('$name is not declared yet.')
+    p.token_err('`$name` is not declared yet')
   }
   node := if lvar.is_global {
     p.new_node_gvar(lvar.offset, lvar.typ, name)

@@ -12,6 +12,10 @@ fn unexp_err(token Tok, s string) {
   exit(1)
 }
 
+fn (p Parser) token_err(s string) {
+  unexp_err(p.tokens[p.pos], s)
+}
+
 fn main(){
   args := os.args
   mut program := ''

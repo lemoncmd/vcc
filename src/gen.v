@@ -279,8 +279,10 @@ fn (p mut Parser) gen(node &Node) {
       println('  cmp rax, 0')
       println('  je .L.end.${node.num}')
       p.genifnum << node.num
+      p.gencontnum << node.num
       p.gen(node.left)
       p.genifnum.delete(p.genifnum.len-1)
+      p.gencontnum.delete(p.gencontnum.len-1)
       println('.L.cont.${node.num}:')
       p.gen(node.right)
       println('  jmp .L.begin.${node.num}')
@@ -294,8 +296,10 @@ fn (p mut Parser) gen(node &Node) {
       println('  cmp rax, 0')
       println('  je .L.end.${node.num}')
       p.genifnum << node.num
+      p.gencontnum << node.num
       p.gen(node.left)
       p.genifnum.delete(p.genifnum.len-1)
+      p.gencontnum.delete(p.gencontnum.len-1)
       println('.L.cont.${node.num}:')
       println('  jmp .L.begin.${node.num}')
       println('.L.end.${node.num}:')
@@ -304,8 +308,10 @@ fn (p mut Parser) gen(node &Node) {
     .do {
       println('.L.begin.${node.num}:')
       p.genifnum << node.num
+      p.gencontnum << node.num
       p.gen(node.left)
       p.genifnum.delete(p.genifnum.len-1)
+      p.gencontnum.delete(p.gencontnum.len-1)
       println('.L.cont.${node.num}:')
       p.gen(node.cond)
       println('  pop rax')
@@ -315,19 +321,44 @@ fn (p mut Parser) gen(node &Node) {
       println('.L.end.${node.num}:')
       return
     }
+    .swich {
+      println('.L.begin.${node.num}:')
+      mut i := 0
+      p.gen(node.cond)
+      for _cons in node.code {
+        cons := &Node(_cons)
+        p.gen(cons)
+        println('  pop rdi')
+        println('  pop rax')
+        println('  cmp rax, rdi')
+        println('  je .L.label.case.${node.num}.$i')
+        println('  push rax')
+        i++
+      }
+      if node.name == 'hasdefault' {
+        println('  jmp .L.label.default.${node.num}')
+      } else {
+        println('  jmp .L.end.${node.num}')
+      }
+      p.genifnum << node.num
+      p.gen(node.left)
+      p.genifnum.delete(p.genifnum.len-1)
+      println('.L.end.${node.num}')
+      return
+    }
     .brk {
       if p.genifnum.len == 0 {
-        parse_err('cannot break not in loop statement')
+        parse_err('cannot break not in loop or switch statement')
       }
       ifnum := p.genifnum.last()
       println('  jmp .L.end.$ifnum')
       return
     }
     .cont {
-      if p.genifnum.len == 0 {
+      if p.gencontnum.len == 0 {
         parse_err('cannot continue not in loop statement')
       }
-      ifnum := p.genifnum.last()
+      ifnum := p.gencontnum.last()
       println('  jmp .L.cont.$ifnum')
       return
     }
