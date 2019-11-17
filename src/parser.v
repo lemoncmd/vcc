@@ -81,6 +81,7 @@ enum Nodekind {
   decb
   incf
   decf
+  comma
 }
 
 struct Function {
@@ -485,7 +486,7 @@ fn (p mut Parser) stmt() &Node {
       0
     }
     first := if is_decl && p.consume('=') {
-      node_tmp = p.new_node(.assign, p.new_node_lvar(offset, fortyp), p.expr())
+      node_tmp = p.new_node(.assign, p.new_node_lvar(offset, fortyp), p.assign())
       node_tmp.add_type()
       p.expect(';')
       node_tmp
@@ -639,7 +640,7 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
           offset := p.declare(typ, name)
           if p.consume('=') {
             lvar := p.new_node_lvar(offset, typ)
-            mut assign := p.new_node(.assign, lvar, p.expr())
+            mut assign := p.new_node(.assign, lvar, p.assign())
             assign.add_type()
             node.code << voidptr(assign)
           }
@@ -655,7 +656,15 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
 }
 
 fn (p mut Parser) expr() &Node {
-  return p.assign()
+  mut node := p.assign()
+  for {
+    if p.consume(',') {
+      node = p.new_node(.comma, node, p.assign())
+    } else {
+      return node
+    }
+  }
+  return node
 }
 
 fn (p mut Parser) assign() &Node {
@@ -957,7 +966,7 @@ fn (p mut Parser) postfix() &Node {
 }
 
 fn (p mut Parser) args() (&Node, int) {
-  expr := p.expr()
+  expr := p.assign()
   if p.consume(',') {
     args, num := p.args()
     return p.new_node(.args, expr, args), num+1

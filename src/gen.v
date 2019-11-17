@@ -243,6 +243,12 @@ fn (p mut Parser) gen(node &Node) {
       println('  push rax')
       return
     }
+    .comma {
+      p.gen(node.left)
+      println('  pop rax')
+      p.gen(node.right)
+      return
+    }
     .block {
       for i in node.code {
         code := &Node(i)
@@ -343,7 +349,7 @@ fn (p mut Parser) gen(node &Node) {
       p.genifnum << node.num
       p.gen(node.left)
       p.genifnum.delete(p.genifnum.len-1)
-      println('.L.end.${node.num}')
+      println('.L.end.${node.num}:')
       return
     }
     .brk {
