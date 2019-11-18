@@ -209,8 +209,10 @@ fn (p Parser) gen_calc(kind Nodekind) {
 fn (p mut Parser) gen(node &Node) {
   match node.kind {
     .ret {
-      p.gen(node.left)
-      println('  pop rax')
+      if node.left.kind != .nothing {
+        p.gen(node.left)
+        println('  pop rax')
+      }
       println('  jmp .L.return.${p.curfn.name}')
       return
     }
@@ -463,7 +465,11 @@ fn (p mut Parser) gen(node &Node) {
       return
     }
     .sizof {
-      size := node.left.typ.size()
+      size := if node.left.typ.kind.last() == .void {
+        1
+      } else {
+        node.left.typ.size()
+      }
       println('  push $size')
       return
     }

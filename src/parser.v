@@ -450,6 +450,7 @@ fn (p mut Parser) function(name string, typ &Type) &Function {
   p.block_without_curbl(mut content)
   p.curbl.delete(p.curbl.len-1)
   func.content = content
+  p.curfn = 0
   return func
 }
 
@@ -470,8 +471,11 @@ fn (p mut Parser) declare(typ &Type, name string) int {
 fn (p mut Parser) stmt() &Node {
   mut node := &Node{}
   if p.consume('return') {
-    node = p.new_node(.ret, p.expr(), &Node{})
-    p.expect(';')
+    if !p.consume(';') {
+      node = p.expr()
+      p.expect(';')
+    }
+    node = p.new_node(.ret, node, &Node{})
   } else if p.look_for('{') {
     node = p.block()
   } else if p.consume('if') {

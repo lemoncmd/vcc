@@ -8,6 +8,7 @@ mut:
 }
 
 enum Typekind {
+  void
   int
   char
   short
@@ -32,7 +33,7 @@ fn (p mut Parser) consume_type() (bool, &Type, string) {
 fn (p mut Parser) consume_type_base() (bool, &Type) {
   mut token := p.tokens[p.pos]
   mut typ := &Type{}
-  if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char', 'struct', 'const']) {
+  if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char', 'struct', 'const', 'void']) {
     return false, typ
   }
   for p.consume('const') {
@@ -43,6 +44,9 @@ fn (p mut Parser) consume_type_base() (bool, &Type) {
   } else {
     p.pos++
     match token.str {
+      'void' {
+        typ.kind << Typekind.void
+      }
       'char' {
         typ.kind << Typekind.char
       }
@@ -92,13 +96,12 @@ fn (p mut Parser) consume_type_back(typ mut Type) {
 
 fn (p mut Parser) expect_type() string {
   token := p.tokens[p.pos]
-  if token.kind != .reserved || !(token.str in ['int', 'short', 'long', 'char']) {
+  if token.kind != .reserved || !(token.str in ['int', 'short', 'long', 'char', 'void']) {
     unexp_err(token, 'Expected type but got ${token.str}')
   }
   p.pos++
   return token.str
 }
-
 
 fn (p mut Parser) consume_type_struct() &Type {
   mut typ := &Type{}
@@ -165,6 +168,9 @@ fn align(offset, size int) int {
 
 fn (typ Type) size() int {
   kind := typ.kind.last()
+  if kind == .void {
+    parse_err('Cannot use incomplete type void')
+  }
   size := match kind {
     .char {1}
     .short {2}
@@ -266,7 +272,7 @@ fn (node mut Node) add_type() {
       node.typ = node.right.typ.cast_ary()
     }
     .call {
-      typ.kind << Typekind.int
+      typ.kind << Typekind.long
       node.typ = typ
     }
     .sizof {
