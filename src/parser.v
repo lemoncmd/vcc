@@ -834,14 +834,12 @@ fn (p mut Parser) add() &Node {
       if node.typ.is_ptr() && right.typ.is_int() {
         typ = node.typ.reduce()
         num := p.new_node_num(typ.size())
-        typ.kind = node.typ.kind.clone()
-        typ.suffix = node.typ.suffix.clone()
+        typ = node.typ.cast_ary()
         right = p.new_node(.mul, right, num)
       } else if node.typ.is_int() && right.typ.is_ptr() {
         typ = right.typ.reduce()
         num := p.new_node_num(typ.size())
-        typ.kind = node.typ.kind.clone()
-        typ.suffix = node.typ.suffix.clone()
+        typ = right.typ.cast_ary()
         node = p.new_node(.mul, node, num)
       } else if node.typ.is_int() && right.typ.is_int() {
         typ = type_max(node.typ, right.typ).clone()
@@ -859,13 +857,12 @@ fn (p mut Parser) add() &Node {
       if node.typ.is_ptr() && right.typ.is_int() {
         typ = node.typ.reduce()
         num := p.new_node_num(typ.size())
-        typ.kind = node.typ.kind.clone()
-        typ.suffix = node.typ.suffix.clone()
+        typ = node.typ.cast_ary()
         right = p.new_node(.mul, right, num)
       } else if node.typ.is_ptr() && right.typ.is_ptr() {
         typ = node.typ.reduce()
         num := p.new_node_num(typ.size())
-        typ.kind = [Typekind.int]
+        typ.kind = [Typekind.long]
         typ.suffix = []int
         node = p.new_node(.div, node, num)
         right = p.new_node(.div, right, num)

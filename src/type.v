@@ -194,6 +194,16 @@ fn (typ Type) clone() &Type {
   return typ2
 }
 
+fn (typ Type) cast_ary() &Type {
+  mut typ2 := typ.clone()
+  if typ.kind.last() != .ary {
+    return typ2
+  }
+  typ2 = typ2.reduce()
+  typ2.kind << Typekind.ptr
+  return typ2
+}
+
 fn (typ mut Type) merge(typ2 &Type) {
   typ.kind << typ2.kind
   typ.suffix << typ2.suffix
@@ -241,13 +251,19 @@ fn (node mut Node) add_type() {
     }
     .mul, .div, .mod, .bitand, .bitor, .bitxor, .ifelse {
       bigtyp := type_max(node.left.typ, node.right.typ)
-      node.typ = bigtyp.clone()
+      if node.kind != .ifelse && (node.left.typ.is_ptr() || node.right.typ.is_ptr()) {
+        parse_err('Invalid operand type')
+      }
+      node.typ = bigtyp.cast_ary()
     }
-    .incb, .decb, .incf, .decf, .shl, .shl, .bitnot {
-      node.typ = node.left.typ.clone()
+    .incb, .decb, .incf, .decf, .shl, .shr, .bitnot {
+      if node.left.typ.is_ptr() || ((node.kind in [.shl, .shr]) && node.right.typ.is_ptr()) {
+        parse_err('Invalid operand type')
+      }
+      node.typ = node.left.typ.cast_ary()
     }
     .comma {
-      node.typ = node.right.typ.clone()
+      node.typ = node.right.typ.cast_ary()
     }
     .call {
       typ.kind << Typekind.int
