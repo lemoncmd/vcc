@@ -246,12 +246,15 @@ fn (node mut Node) add_type() {
     .incb, .decb, .incf, .decf, .shl, .shl, .bitnot {
       node.typ = node.left.typ.clone()
     }
+    .comma {
+      node.typ = node.right.typ.clone()
+    }
     .call {
       typ.kind << Typekind.int
       node.typ = typ
     }
     .sizof {
-      typ.kind << Typekind.int
+      typ.kind << Typekind.long
       node.typ = typ
     }
     .deref {
