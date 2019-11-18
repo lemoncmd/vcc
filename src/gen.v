@@ -14,11 +14,13 @@ fn (p mut Parser) gen_main() {
   for name, _gvar in p.global {
     gvar := _gvar.val
     size := gvar.typ.size()
-    if !gvar.is_static {
-      println('.global $name')
+    if !gvar.is_extern {
+      if !gvar.is_static {
+        println('.global $name')
+      }
+      println('$name:')
+      println('  .zero $size')
     }
-    println('$name:')
-    println('  .zero $size')
   }
 
   for i, _node in p.strs {

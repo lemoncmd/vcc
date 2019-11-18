@@ -119,6 +119,7 @@ struct Lvar {
   is_global bool
 mut:
   is_static bool
+  is_extern bool
   offset int
 }
 
@@ -368,6 +369,16 @@ fn (p mut Parser) program() {
 
 fn (p mut Parser) top() {
   is_static := p.consume('static')
+  if is_static {p.consume('inline')}
+  is_extern := if is_static {
+    false
+  } else if p.consume('inline') {
+    true
+  } else if p.consume('extern') {
+    !p.consume('inline')
+  } else {
+    false
+  }
   is_typ, mut typ := p.consume_type_base()
   if !is_typ {
     p.token_err('Expected type')
@@ -386,6 +397,7 @@ fn (p mut Parser) top() {
     p.expect(';')
     mut gvar := p.new_gvar(name, typ)
     gvar.is_static = is_static
+    gvar.is_extern = is_extern
     p.global[name] = Lvarwrap{gvar}
   }
 }

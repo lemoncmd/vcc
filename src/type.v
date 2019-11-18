@@ -147,7 +147,7 @@ fn (p mut Parser) consume_type_struct() &Type {
           }
           p.consume_type_back(mut typ_child)
           strc.offset = align(strc.offset, typ_child.size())
-          lvar := &Lvar{name_child, typ_child, false, false, strc.offset}
+          lvar := &Lvar{name_child, typ_child, false, false, false, strc.offset}
           strc.offset += typ_child.size()
           strc.content[name_child] = Lvarwrap{lvar}
         }
