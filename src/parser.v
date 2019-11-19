@@ -691,7 +691,13 @@ fn (p mut Parser) assign() &Node {
   } else {
     is_assign, op := p.consume_any(['+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<=', '>>='])
     if is_assign {
-      node = p.new_node(.calcassign, node, p.assign())
+      node.add_type()
+      mut calcee := p.assign()
+      if node.typ.kind.last() == .ptr {
+        body := node.typ.reduce()
+        calcee = p.new_node(.mul, calcee, p.new_node_num(body.size_allow_void()))
+      }
+      node = p.new_node(.calcassign, node, calcee)
       node.secondkind = match op {
         '+=' {Nodekind.add}
         '-=' {Nodekind.sub}
@@ -849,12 +855,12 @@ fn (p mut Parser) add() &Node {
       mut typ := &Type{}
       if node.typ.is_ptr() && right.typ.is_int() {
         typ = node.typ.reduce()
-        num := p.new_node_num(typ.size())
+        num := p.new_node_num(typ.size_allow_void())
         typ = node.typ.cast_ary()
         right = p.new_node(.mul, right, num)
       } else if node.typ.is_int() && right.typ.is_ptr() {
         typ = right.typ.reduce()
-        num := p.new_node_num(typ.size())
+        num := p.new_node_num(typ.size_allow_void())
         typ = right.typ.cast_ary()
         node = p.new_node(.mul, node, num)
       } else if node.typ.is_int() && right.typ.is_int() {
@@ -879,7 +885,7 @@ fn (p mut Parser) add() &Node {
         typ = node.typ.reduce()
         num := p.new_node_num(typ.size())
         typ.kind = [Typekind.long]
-        typ.suffix = []int
+        typ.suffix = []
         node = p.new_node(.div, node, num)
         right = p.new_node(.div, right, num)
       } else if node.typ.is_int() && right.typ.is_int() {
@@ -955,13 +961,13 @@ fn (p mut Parser) postfix() &Node {
     mut typ := &Type{}
     if node.typ.is_ptr() && right.typ.is_int() {
       typ = node.typ.reduce()
-      num := p.new_node_num(typ.size())
+      num := p.new_node_num(typ.size_allow_void())
       typ.kind = node.typ.kind.clone()
       typ.suffix = node.typ.suffix.clone()
       right = p.new_node(.mul, right, num)
     } else if node.typ.is_int() && right.typ.is_ptr() {
       typ = right.typ.reduce()
-      num := p.new_node_num(typ.size())
+      num := p.new_node_num(typ.size_allow_void())
       typ.kind = node.typ.kind.clone()
       typ.suffix = node.typ.suffix.clone()
       node = p.new_node(.mul, node, num)
@@ -1006,13 +1012,19 @@ fn (p mut Parser) primary() &Node {
   }
 
   if p.consume('(') {
+    mut node := &Node{}
     if p.consume(')') {
-      return p.new_node_call(.call, 0, name, &Node{})
+      node = p.new_node_call(.call, 0, name, &Node{})
     } else {
       args, num := p.args()
       p.expect(')')
-      return p.new_node_call(.call, num, name, args)
+      node = p.new_node_call(.call, num, name, args)
     }
+    node.add_type()
+    if name in p.code {
+      node.typ = p.code[name].val.typ.clone()
+    }
+    return node
   }
 
   is_lvar, lvar, _ := p.find_lvar(name)

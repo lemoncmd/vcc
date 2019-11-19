@@ -110,12 +110,22 @@ fn (p Parser) gen_inc(kind Nodekind, typ &Type){
     'sub'
   }
   if kind in [.incb, .decb] {
-    match typ.size() {
-      1 {println('  movsx rdx, byte ptr [rax]')}
-      2 {println('  movsx rdx, word ptr [rax]')}
-      4 {println('  movsxd rdx, dword ptr [rax]')}
-      8 {println('  mov rdx, [rax]')}
-      else {parse_err('you are loading something wrong')}
+    if typ.is_unsigned() {
+      match typ.size() {
+        1 {println('  movzx rdx, byte ptr [rax]')}
+        2 {println('  movzx rdx, word ptr [rax]')}
+        4 {println('  mov edx, dword ptr [rax]')}
+        8 {println('  mov rdx, [rax]')}
+        else {parse_err('you are loading something wrong')}
+      }
+    } else {
+      match typ.size() {
+        1 {println('  movsx rdx, byte ptr [rax]')}
+        2 {println('  movsx rdx, word ptr [rax]')}
+        4 {println('  movsxd rdx, dword ptr [rax]')}
+        8 {println('  mov rdx, [rax]')}
+        else {parse_err('you are loading something wrong')}
+      }
     }
     println('  push rdx')
   }
@@ -124,20 +134,30 @@ fn (p Parser) gen_inc(kind Nodekind, typ &Type){
       1 {println('  $cmd byte ptr [rax], 1')}
       2 {println('  $cmd word ptr [rax], 1')}
       4 {println('  $cmd dword ptr [rax], 1')}
-      8 {println('  $cmd [rax], 1')}
+      8 {println('  $cmd qword ptr [rax], 1')}
       else {parse_err('you are loading something wrong')}
     }
   } else {
-    size := typ.reduce().size()
-    println('  $cmd [rax], $size')
+    size := typ.reduce().size_allow_void()
+    println('  $cmd qword ptr [rax], $size')
   }
   if kind in [.incf, .decf] {
-    match typ.size() {
-      1 {println('  movsx rdx, byte ptr [rax]')}
-      2 {println('  movsx rdx, word ptr [rax]')}
-      4 {println('  movsxd rdx, dword ptr [rax]')}
-      8 {println('  mov rdx, [rax]')}
-      else {parse_err('you are loading something wrong')}
+    if typ.is_unsigned() {
+      match typ.size() {
+        1 {println('  movzx rdx, byte ptr [rax]')}
+        2 {println('  movzx rdx, word ptr [rax]')}
+        4 {println('  mov edx, dword ptr [rax]')}
+        8 {println('  mov rdx, [rax]')}
+        else {parse_err('you are loading something wrong')}
+      }
+    } else {
+      match typ.size() {
+        1 {println('  movsx rdx, byte ptr [rax]')}
+        2 {println('  movsx rdx, word ptr [rax]')}
+        4 {println('  movsxd rdx, dword ptr [rax]')}
+        8 {println('  mov rdx, [rax]')}
+        else {parse_err('you are loading something wrong')}
+      }
     }
     println('  push rdx')
   }
@@ -145,12 +165,22 @@ fn (p Parser) gen_inc(kind Nodekind, typ &Type){
 
 fn (p Parser) gen_load(typ &Type){
   println('  pop rax')
-  match typ.size() {
-    1 {println('  movsx rax, byte ptr [rax]')}
-    2 {println('  movsx rax, word ptr [rax]')}
-    4 {println('  movsxd rax, dword ptr [rax]')}
-    8 {println('  mov rax, [rax]')}
-    else {parse_err('you are loading something wrong')}
+  if typ.is_unsigned() {
+    match typ.size() {
+      1 {println('  movzx rax, byte ptr [rax]')}
+      2 {println('  movzx rax, word ptr [rax]')}
+      4 {println('  mov eax, dword ptr [rax]')}
+      8 {println('  mov rax, [rax]')}
+      else {parse_err('you are loading something wrong')}
+    }
+  } else {
+    match typ.size() {
+      1 {println('  movsx rax, byte ptr [rax]')}
+      2 {println('  movsx rax, word ptr [rax]')}
+      4 {println('  movsxd rax, dword ptr [rax]')}
+      8 {println('  mov rax, [rax]')}
+      else {parse_err('you are loading something wrong')}
+    }
   }
   println('  push rax')
 }
@@ -203,6 +233,49 @@ fn (p Parser) gen_calc(kind Nodekind) {
       }
       println('  movzb rax, al')
     }
+  }
+}
+
+fn (p Parser) gen_calc_unsigned(kind Nodekind, size int) {
+  match kind {
+    .add {println('  add rax, rdi')}
+    .sub {println('  sub rax, rdi')}
+    .mul {println('  mul rdi')}
+    .div {
+      println('  mov rdx, 0')
+      println('  div rdi')
+    }
+    .mod {
+      println('  mov rdx, 0')
+      println('  div rdi')
+      println('  mov rax, rdx')
+    }
+    .bitand {println('  and rax, rdi')}
+    .bitor  {println('  or rax, rdi')}
+    .bitxor {println('  xor rax, rdi')}
+    .shl {
+      println('  mov cl, dil')
+      println('  shl rax, cl')
+    }
+    .shr {
+      println('  mov cl, dil')
+      println('  shr rax, cl')
+    }
+    else {
+      println('  cmp rax, rdi')
+      match kind {
+        .eq {println('  sete al')}
+        .ne {println('  setne al')}
+        .gt {println('  seta al')}
+        .ge {println('  setae al')}
+      }
+      println('  movzb rax, al')
+    }
+  }
+  match size {
+    1 {println('  movzx rax, al')}
+    2 {println('  movzx rax, ax')}
+    4 {println('  lea rax, [eax]')}
   }
 }
 
@@ -433,7 +506,11 @@ fn (p mut Parser) gen(node &Node) {
       println('  pop rax')
       println('  pop rdi')
 
-      p.gen_calc(node.secondkind)
+      if node.left.typ.is_unsigned() {
+        p.gen_calc_unsigned(node.secondkind, node.left.typ.size())
+      } else {
+        p.gen_calc(node.secondkind)
+      }
 
       println('  push rax')
       p.gen_store(node.typ)
@@ -465,11 +542,7 @@ fn (p mut Parser) gen(node &Node) {
       return
     }
     .sizof {
-      size := if node.left.typ.kind.last() == .void {
-        1
-      } else {
-        node.left.typ.size()
-      }
+      size := node.left.typ.size_allow_void()
       println('  push $size')
       return
     }
@@ -484,7 +557,11 @@ fn (p mut Parser) gen(node &Node) {
   println('  pop rdi')
   println('  pop rax')
 
-  p.gen_calc(node.kind)
+  if node.typ.is_unsigned() {
+    p.gen_calc_unsigned(node.kind, node.typ.size())
+  } else {
+    p.gen_calc(node.kind)
+  }
 
   println('  push rax')
 }

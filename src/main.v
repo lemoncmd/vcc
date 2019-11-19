@@ -30,10 +30,7 @@ fn main(){
     }
     program = args[2]
   } else {
-    cont := os.read_file(args[1]) or {
-      eprintln(err)
-      exit(1)
-    }
+    cont := os.read_file(args[1])?
     program = cont
   }
 

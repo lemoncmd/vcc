@@ -14,6 +14,11 @@ enum Typekind {
   short
   long
   ll
+  uint
+  uchar
+  ushort
+  ulong
+  ull
   ptr
   ary
   strc
@@ -33,13 +38,27 @@ fn (p mut Parser) consume_type() (bool, &Type, string) {
 fn (p mut Parser) consume_type_base() (bool, &Type) {
   mut token := p.tokens[p.pos]
   mut typ := &Type{}
-  if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char', 'struct', 'const', 'void']) {
+  if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char', 'struct', 'const', 'void', 'unsigned', 'signed']) {
     return false, typ
   }
   for p.consume('const') {
     token = p.tokens[p.pos]
   }
+  is_signed := p.consume('signed')
+  is_unsigned := p.consume('unsigned')
+  if (is_signed && is_unsigned) || (is_unsigned && p.consume('signed')) {
+    p.token_err('Type cannot be signed and unsigned')
+  }
+  if is_signed || is_unsigned {
+    token = p.tokens[p.pos]
+  }
+  for p.consume('const') {
+    token = p.tokens[p.pos]
+  }
   if token.str == 'struct'{
+    if is_signed || is_unsigned {
+      p.token_err('Struct cannot be signed or unsigned')
+    }
     typ = p.consume_type_struct()
   } else {
     p.pos++
@@ -67,6 +86,18 @@ fn (p mut Parser) consume_type_base() (bool, &Type) {
         }
         for p.consume('const') {}
         p.consume('int')
+      }
+    }
+    if is_unsigned {
+      old_kind := typ.kind[0]
+      typ.kind[0] = match old_kind {
+        .void  {Typekind.void}
+        .int   {Typekind.uint}
+        .char  {Typekind.uchar}
+        .short {Typekind.ushort}
+        .long  {Typekind.ulong}
+        .ll    {Typekind.ull}
+        else   {.void}
       }
     }
   }
@@ -166,20 +197,36 @@ fn align(offset, size int) int {
   return (offset+size-1) & ~(size-1)
 }
 
+fn (typ Type) is_unsigned() bool {
+  kind := typ.kind.last()
+  if kind in [.uint, .uchar, .ushort, .ulong, .ull, .ptr] {
+    return true
+  }
+  return false
+}
+
 fn (typ Type) size() int {
   kind := typ.kind.last()
   if kind == .void {
     parse_err('Cannot use incomplete type void')
   }
   size := match kind {
-    .char {1}
-    .short {2}
-    .int {4}
-    .long, .ll, .ptr {8}
+    .char, .uchar {1}
+    .short, .ushort {2}
+    .int, .uint {4}
+    .long, .ll, .ulong, .ull, .ptr {8}
     .ary {typ.suffix.last() * typ.reduce().size()}
     else {8}
   }
   return size
+}
+
+fn (typ Type) size_allow_void() int {
+  if typ.kind.last() == .void {
+    return 1
+  } else {
+    return typ.size()
+  }
 }
 
 fn (typ Type) reduce() &Type {
@@ -216,7 +263,7 @@ fn (typ mut Type) merge(typ2 &Type) {
 }
 
 fn (typ Type) is_int() bool {
-  return typ.kind.last() in [.char, .short, .int, .long, .ll]
+  return typ.kind.last() in [.char, .short, .int, .long, .ll, .uchar, .ushort, .uint, .ulong, .ull]
 }
 
 fn (typ Type) is_ptr() bool {
@@ -225,6 +272,11 @@ fn (typ Type) is_ptr() bool {
 
 fn type_max(typ1, typ2 &Type) &Type {
   if typ1.size() > typ2.size() {
+    return typ1
+  } else if typ1.size() == typ2.size() {
+    if typ2.is_unsigned() {
+      return typ2
+    }
     return typ1
   } else {
     return typ2
@@ -235,10 +287,10 @@ fn (node mut Node) add_type() {
   if node.kind == .nothing || node.typ != 0 {
     return
   }
-  if node.cond != 0 {node.cond.add_type()}
-  if node.first != 0 {node.first.add_type()}
-  if node.left != 0 {node.left.add_type()}
-  if node.right != 0 {node.right.add_type()}
+  if !isnil(node.cond) {node.cond.add_type()}
+  if !isnil(node.first) {node.first.add_type()}
+  if !isnil(node.left) {node.left.add_type()}
+  if !isnil(node.right) {node.right.add_type()}
 
   for i in node.code {
     mut no := &Node(i)
@@ -251,19 +303,27 @@ fn (node mut Node) add_type() {
     .assign, .calcassign {
       node.typ = node.left.typ.clone()
     }
-    .add, .sub, .eq, .ne, .gt, .ge, .num {
+    .eq, .ne, .gt, .ge, .num {
       typ.kind << Typekind.int
       node.typ = typ
     }
-    .mul, .div, .mod, .bitand, .bitor, .bitxor, .ifelse {
+    .add, .sub, .mul, .div, .mod, .bitand, .bitor, .bitxor {
       bigtyp := type_max(node.left.typ, node.right.typ)
-      if node.kind != .ifelse && (node.left.typ.is_ptr() || node.right.typ.is_ptr()) {
+      if node.left.typ.is_ptr() || node.right.typ.is_ptr() {
         parse_err('Invalid operand type')
       }
       node.typ = bigtyp.cast_ary()
     }
+    .ifelse {
+      if node.left.typ.kind.last() == .void || node.right.typ.kind.last() == .void {
+        node.typ.kind << Typekind.void
+      } else {
+        bigtyp := type_max(node.left.typ, node.right.typ)
+        node.typ = bigtyp.cast_ary()
+      }
+    }
     .incb, .decb, .incf, .decf, .shl, .shr, .bitnot {
-      if node.left.typ.is_ptr() || ((node.kind in [.shl, .shr]) && node.right.typ.is_ptr()) {
+      if (node.kind in [.shl, .shr, .bitnot] && node.left.typ.is_ptr()) || ((node.kind in [.shl, .shr]) && node.right.typ.is_ptr()) {
         parse_err('Invalid operand type')
       }
       node.typ = node.left.typ.cast_ary()
@@ -272,11 +332,11 @@ fn (node mut Node) add_type() {
       node.typ = node.right.typ.cast_ary()
     }
     .call {
-      typ.kind << Typekind.long
+      typ.kind << Typekind.ulong
       node.typ = typ
     }
     .sizof {
-      typ.kind << Typekind.long
+      typ.kind << Typekind.ulong
       node.typ = typ
     }
     .deref {
