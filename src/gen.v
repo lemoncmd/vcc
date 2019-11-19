@@ -47,7 +47,8 @@ fn (p mut Parser) gen_main() {
     println('  sub rsp, $offset')
 
     mut fnargs := func.args
-    for i := 0; i < func.num; i++ {
+    maxnum := if func.num > 6 {6} else {func.num}
+    for i in 0..maxnum {
       reg := match fnargs.left.typ.size() {
         1 {Reg1[i]}
         2 {Reg2[i]}
@@ -58,6 +59,22 @@ fn (p mut Parser) gen_main() {
       if reg == 'none' {
         parse_err('Invalid type in arg of function $name')
       }
+      println('  mov [rbp-${fnargs.left.offset}], $reg')
+      fnargs = fnargs.right
+    }
+    for i in 6..func.num {
+      reg := match fnargs.left.typ.size() {
+        1 {'al'}
+        2 {'ax'}
+        4 {'eax'}
+        8 {'rax'}
+        else {'none'}
+      }
+      if reg == 'none' {
+        parse_err('Invalid type in arg of function $name')
+      }
+      basenum := 8 * (i - 4)
+      println('  mov rax, [rbp+$basenum]')
       println('  mov [rbp-${fnargs.left.offset}], $reg')
       fnargs = fnargs.right
     }
@@ -81,8 +98,7 @@ fn (p mut Parser) gen_lval(node &Node) {
     return
   }
 
-  println('  mov rax, rbp')
-  println('  sub rax, ${node.offset}')
+  println('  lea rax, [rbp-${node.offset}]')
   println('  push rax')
 }
 
@@ -277,6 +293,13 @@ fn (p Parser) gen_calc_unsigned(kind Nodekind, size int) {
     2 {println('  movzx rax, ax')}
     4 {println('  lea rax, [eax]')}
   }
+}
+
+fn (p mut Parser) gen_arg(node &Node, left int) {
+  if left > 1 {
+    p.gen_arg(node.right, left-1)
+  }
+  p.gen(node.left)
 }
 
 fn (p mut Parser) gen(node &Node) {
@@ -518,27 +541,34 @@ fn (p mut Parser) gen(node &Node) {
     }
     .call {
       mut args := node.left
-      for i in [0].repeat(node.num) {
-        p.gen(args.left)
-        args = args.right
-      }
-      for i in Regs.left(node.num).reverse() {
-        println('  pop $i')
-      }
+      println('  push 1')
       println('  mov rax, rsp')
       println('  and rax, 15')
-      println('  jnz .L.call.${p.ifnum}')
-      println('  mov rax, 0')
-      println('  call ${node.name}')
-      println('  jmp .L.end.${p.ifnum}')
-      println('.L.call.${p.ifnum}:')
-      println('  sub rsp, 8')
-      println('  mov rax, 0')
-      println('  call ${node.name}')
-      println('  add rsp, 8')
-      println('.L.end.${p.ifnum}:')
-      println('  push rax')
+      ifnum := p.ifnum
       p.ifnum++
+      if node.num % 2 == 1 {
+        println('  jnz .L.call.$ifnum')
+      } else {
+        println('  jz .L.call.$ifnum')
+      }
+      println('  push 0')
+      println('.L.call.$ifnum:')
+      p.gen_arg(args, node.num)
+      for i in Regs.left(node.num) {
+        println('  pop $i')
+      }
+      println('  mov rax, 0')
+      println('  call ${node.name}')
+      if node.num > 6 {
+        overed := 8 * (node.num - 6)
+        println('  add rsp, $overed')
+      }
+      println('  pop rdi')
+      println('  cmp rdi, 0')
+      println('  jnz .L.end.$ifnum')
+      println('  pop rdi')
+      println('.L.end.$ifnum:')
+      println('  push rax')
       return
     }
     .sizof {
