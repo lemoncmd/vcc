@@ -486,6 +486,7 @@ fn (p mut Parser) stmt() &Node {
     if p.consume('else') {
       stmt_false := p.stmt()
       node = p.new_node_with_cond(.ifelse, expr, stmt_true, stmt_false, p.ifnum)
+      node.name = 'stmt'
     } else {
       node = p.new_node_with_cond(.ifn, expr, stmt_true, &Node{}, p.ifnum)
     }
@@ -858,11 +859,13 @@ fn (p mut Parser) add() &Node {
         num := p.new_node_num(typ.size_allow_void())
         typ = node.typ.cast_ary()
         right = p.new_node(.mul, right, num)
+        right.typ = typ.clone()
       } else if node.typ.is_int() && right.typ.is_ptr() {
         typ = right.typ.reduce()
         num := p.new_node_num(typ.size_allow_void())
         typ = right.typ.cast_ary()
         node = p.new_node(.mul, node, num)
+        node.typ = typ.clone()
       } else if node.typ.is_int() && right.typ.is_int() {
         typ = type_max(node.typ, right.typ).clone()
       } else {
@@ -878,12 +881,12 @@ fn (p mut Parser) add() &Node {
       mut typ := &Type{}
       if node.typ.is_ptr() && right.typ.is_int() {
         typ = node.typ.reduce()
-        num := p.new_node_num(typ.size())
+        num := p.new_node_num(typ.size_allow_void())
         typ = node.typ.cast_ary()
         right = p.new_node(.mul, right, num)
       } else if node.typ.is_ptr() && right.typ.is_ptr() {
         typ = node.typ.reduce()
-        num := p.new_node_num(typ.size())
+        num := p.new_node_num(typ.size_allow_void())
         typ.kind = [Typekind.long]
         typ.suffix = []
         node = p.new_node(.div, node, num)
@@ -965,12 +968,14 @@ fn (p mut Parser) postfix() &Node {
       typ.kind = node.typ.kind.clone()
       typ.suffix = node.typ.suffix.clone()
       right = p.new_node(.mul, right, num)
+      right.typ = typ.clone()
     } else if node.typ.is_int() && right.typ.is_ptr() {
       typ = right.typ.reduce()
       num := p.new_node_num(typ.size_allow_void())
       typ.kind = node.typ.kind.clone()
       typ.suffix = node.typ.suffix.clone()
       node = p.new_node(.mul, node, num)
+      node.typ = typ.clone()
     } else if node.typ.is_int() && right.typ.is_int() {
       p.token_err('either expression in a[b] should be pointer')
     } else {

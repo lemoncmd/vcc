@@ -301,10 +301,10 @@ fn (p Parser) gen_calc_unsigned(kind Nodekind, size int) {
 }
 
 fn (p mut Parser) gen_arg(node &Node, left int) {
-  if left > 1 {
+  if left > 0 {
     p.gen_arg(node.right, left-1)
+    p.gen(node.left)
   }
-  p.gen(node.left)
 }
 
 fn (p mut Parser) gen(node &Node) {

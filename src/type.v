@@ -332,6 +332,9 @@ fn (node mut Node) add_type() {
       node.typ = bigtyp.cast_ary()
     }
     .ifelse {
+      if node.name == 'stmt' {
+        return
+      }
       if node.left.typ.kind.last() == .void || node.right.typ.kind.last() == .void {
         node.typ.kind << Typekind.void
       } else {
