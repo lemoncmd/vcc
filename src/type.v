@@ -22,6 +22,7 @@ enum Typekind {
   ptr
   ary
   strc
+  bool
 }
 
 fn (p mut Parser) consume_type() (bool, &Type, string) {
@@ -38,7 +39,7 @@ fn (p mut Parser) consume_type() (bool, &Type, string) {
 fn (p mut Parser) consume_type_base() (bool, &Type) {
   mut token := p.tokens[p.pos]
   mut typ := &Type{}
-  if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char', 'struct', 'const', 'void', 'unsigned', 'signed']) {
+  if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char', 'struct', 'const', 'void', 'unsigned', 'signed', '_Bool']) {
     return false, typ
   }
   for p.consume('const') {
@@ -60,6 +61,12 @@ fn (p mut Parser) consume_type_base() (bool, &Type) {
       p.token_err('Struct cannot be signed or unsigned')
     }
     typ = p.consume_type_struct()
+  } else if token.str == '_Bool' {
+    if is_signed || is_unsigned {
+      p.token_err('_Bool cannot be signed or unsigned')
+    }
+    p.pos++
+    typ.kind << Typekind.bool
   } else {
     p.pos++
     match token.str {
@@ -127,7 +134,7 @@ fn (p mut Parser) consume_type_back(typ mut Type) {
 
 fn (p mut Parser) expect_type() string {
   token := p.tokens[p.pos]
-  if token.kind != .reserved || !(token.str in ['int', 'short', 'long', 'char', 'void']) {
+  if token.kind != .reserved || !(token.str in ['int', 'short', 'long', 'char', 'void', '_Bool']) {
     unexp_err(token, 'Expected type but got ${token.str}')
   }
   p.pos++
@@ -211,7 +218,7 @@ fn (typ Type) size() int {
     parse_err('Cannot use incomplete type void')
   }
   size := match kind {
-    .char, .uchar {1}
+    .bool, .char, .uchar {1}
     .short, .ushort {2}
     .int, .uint {4}
     .long, .ll, .ulong, .ull, .ptr {8}
@@ -263,7 +270,7 @@ fn (typ mut Type) merge(typ2 &Type) {
 }
 
 fn (typ Type) is_int() bool {
-  return typ.kind.last() in [.char, .short, .int, .long, .ll, .uchar, .ushort, .uint, .ulong, .ull]
+  return typ.kind.last() in [.char, .short, .int, .long, .ll, .uchar, .ushort, .uint, .ulong, .ull, .bool]
 }
 
 fn (typ Type) is_ptr() bool {
@@ -271,15 +278,25 @@ fn (typ Type) is_ptr() bool {
 }
 
 fn type_max(typ1, typ2 &Type) &Type {
-  if typ1.size() > typ2.size() {
-    return typ1
-  } else if typ1.size() == typ2.size() {
-    if typ2.is_unsigned() {
-      return typ2
+  mut typ := &Type{}
+  mut mtyp1 := typ1.clone()
+  mut mtyp2 := typ2.clone()
+  typ.kind << Typekind.int
+  if typ1.size() < 4 {
+    mtyp1 = typ
+  }
+  if typ2.size() < 4 {
+    mtyp2 = typ
+  }
+  if mtyp1.size() > mtyp2.size() {
+    return mtyp1
+  } else if mtyp1.size() == mtyp2.size() {
+    if mtyp2.is_unsigned() {
+      return mtyp2
     }
-    return typ1
+    return mtyp1
   } else {
-    return typ2
+    return mtyp2
   }
 }
 

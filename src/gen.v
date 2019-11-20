@@ -204,6 +204,11 @@ fn (p Parser) gen_load(typ &Type){
 fn (p Parser) gen_store(typ &Type){
   println('  pop rdi')
   println('  pop rax')
+  if typ.kind.last() == .bool {
+    println('  cmp rdi, 0')
+    println('  setne dil')
+    println('  movzb rdi, dil')
+  }
   match typ.size() {
     1 {println('  mov [rax], dil')}
     2 {println('  mov [rax], di')}
@@ -568,6 +573,9 @@ fn (p mut Parser) gen(node &Node) {
       println('  jnz .L.end.$ifnum')
       println('  pop rdi')
       println('.L.end.$ifnum:')
+      if node.typ.kind.last() == .bool {
+        println('  movzb rax, al')
+      }
       println('  push rax')
       return
     }
