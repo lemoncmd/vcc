@@ -39,11 +39,18 @@ fn (p mut Parser) consume_type() (bool, &Type, string) {
 fn (p mut Parser) consume_type_base() (bool, &Type) {
   mut token := p.tokens[p.pos]
   mut typ := &Type{}
-  if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char', 'struct', 'const', 'void', 'unsigned', 'signed', '_Bool']) {
-    return false, typ
-  }
   for p.consume('const') {
     token = p.tokens[p.pos]
+  }
+  is_lvar, lvar, _ := p.find_lvar(token.str)
+  if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char', 'struct', 'void', 'unsigned', 'signed', '_Bool']) {
+    if is_lvar && lvar.is_type {
+      p.pos++
+      for p.consume('const') {}
+      return true, lvar.typ.clone()
+    } else {
+      return false, typ
+    }
   }
   is_signed := p.consume('signed')
   is_unsigned := p.consume('unsigned')
@@ -188,7 +195,7 @@ fn (p mut Parser) consume_type_struct() &Type {
           }
           p.consume_type_back(mut typ_child)
           strc.offset = align(strc.offset, typ_child.size())
-          lvar := &Lvar{name_child, typ_child, false, false, false, strc.offset}
+          lvar := &Lvar{name_child, typ_child, false, false, false, false, strc.offset}
           strc.offset += typ_child.size()
           strc.content[name_child] = Lvarwrap{lvar}
         }

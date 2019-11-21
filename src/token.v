@@ -60,8 +60,9 @@ fn tokenize(p string) []Tok {
     }
 
     if pos + 2 <= p.len && p[pos..pos+2] == '//' {
-      for p[pos] != `\n` || pos < p.len {
+      for pos < p.len && p[pos] != `\n` {
         pos++
+        lpos++
       }
       continue
     }

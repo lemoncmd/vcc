@@ -120,6 +120,7 @@ struct Lvar {
 mut:
   is_static bool
   is_extern bool
+  is_type bool
   offset int
 }
 
@@ -341,7 +342,7 @@ fn (p Parser) find_lvar(name string) (bool, &Lvar, bool) {
     is_curbl = false
   }
   if name in p.global {
-    return true, p.global[name].val, false
+    return true, p.global[name].val, is_curbl
   }
   return false, &Lvar{}, false
 }
@@ -379,6 +380,11 @@ fn (p mut Parser) top() {
   } else {
     false
   }
+  is_typedef := if is_static || is_extern {
+    false
+  } else {
+    p.consume('typedef')
+  }
   is_typ, mut typ := p.consume_type_base()
   if !is_typ {
     p.token_err('Expected type')
@@ -398,6 +404,7 @@ fn (p mut Parser) top() {
     mut gvar := p.new_gvar(name, typ)
     gvar.is_static = is_static
     gvar.is_extern = is_extern
+    gvar.is_type = is_typedef
     p.global[name] = Lvarwrap{gvar}
   }
 }
@@ -454,15 +461,18 @@ fn (p mut Parser) function(name string, typ &Type) &Function {
   return func
 }
 
-fn (p mut Parser) declare(typ &Type, name string) int {
+fn (p mut Parser) declare(typ &Type, name string, is_typedef bool) int {
   is_lvar, _, is_curbl := p.find_lvar(name)
   if is_lvar && is_curbl {
     p.token_err('$name is already declared')
   }
-  p.curfn.offset += typ.size()
-  p.curfn.offset = align(p.curfn.offset, typ.size())
+  if !is_typedef {
+    p.curfn.offset += typ.size()
+    p.curfn.offset = align(p.curfn.offset, typ.size())
+  }
   offset := p.curfn.offset
-  nlvar := p.new_lvar(name, typ, offset)
+  mut nlvar := p.new_lvar(name, typ, offset)
+  nlvar.is_type = is_typedef
   mut block := p.curbl.last()
   block.val.locals << voidptr(nlvar)
   return offset
@@ -498,7 +508,7 @@ fn (p mut Parser) stmt() &Node {
     mut node_tmp := &Node{}
     is_decl, fortyp, name := p.consume_type()
     offset := if is_decl {
-      p.declare(fortyp, name)
+      p.declare(fortyp, name, false)
     } else {
       0
     }
@@ -628,6 +638,11 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
   p.expect('{')
   for !p.consume('}') {
     is_static := p.consume('static')
+    is_typedef := if is_static {
+      false
+    } else {
+      p.consume('typedef')
+    }
     is_dec, typ_base := p.consume_type_base()
     if is_dec {
       mut first := true
@@ -654,8 +669,8 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
           mut block := p.curbl.last()
           block.val.locals << voidptr(lvar)
         } else {
-          offset := p.declare(typ, name)
-          if p.consume('=') {
+          offset := p.declare(typ, name, is_typedef)
+          if !is_typedef && p.consume('=') {
             lvar := p.new_node_lvar(offset, typ)
             mut assign := p.new_node(.assign, lvar, p.assign())
             assign.add_type()
@@ -664,7 +679,7 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
         }
       }
     } else {
-      if is_static {
+      if is_static || is_typedef {
         p.token_err('Expected type')
       }
       node.code << voidptr(p.stmt())
@@ -1035,6 +1050,8 @@ fn (p mut Parser) primary() &Node {
   is_lvar, lvar, _ := p.find_lvar(name)
   if !is_lvar {
     p.token_err('`$name` is not declared yet')
+  } else if lvar.is_type {
+    p.token_err('`$name` is declared as type')
   }
   node := if lvar.is_global {
     p.new_node_gvar(lvar.offset, lvar.typ, name)
