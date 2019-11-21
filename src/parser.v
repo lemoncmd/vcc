@@ -410,9 +410,14 @@ fn (p mut Parser) top() {
 }
 
 fn (p mut Parser) fnargs() (&Node, []Lvarwrap, int) {
-  is_typ, typ, name := p.consume_type()
+  is_typ, mut typ, name := p.consume_type()
   if !is_typ {
     p.token_err('Expected type')
+  }
+  if typ.kind.last() == .ary {
+    typ = typ.reduce()
+    typ.size()
+    typ.kind << Typekind.ptr
   }
   mut lvar := p.new_lvar(name, typ, 0)
   is_lvar, _, is_curbl := p.find_lvar(name)

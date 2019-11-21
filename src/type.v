@@ -131,8 +131,14 @@ fn (p mut Parser) consume_type_front(typ mut Type) {
 
 fn (p mut Parser) consume_type_back(typ mut Type) {
   if p.consume('[') {
-    number := p.expect_number()
-    p.expect(']')
+    number := if p.consume(']') {
+      -1
+    } else {
+      p.expect_number()
+    }
+    if number != -1 {
+      p.expect(']')
+    }
     p.consume_type_back(mut typ)
     typ.kind << Typekind.ary
     typ.suffix << number
@@ -219,10 +225,35 @@ fn (typ Type) is_unsigned() bool {
   return false
 }
 
+fn (typ Type) str() string {
+  match typ.kind.last() {
+    .void   { return 'void' }
+    .int    { return 'int' }
+    .char   { return 'char' }
+    .short  { return 'short' }
+    .long   { return 'long' }
+    .ll     { return 'long long' }
+    .uint   { return 'unsigned int' }
+    .uchar  { return 'unsigned char' }
+    .ushort { return 'unsigned short' }
+    .ulong  { return 'unsigned long' }
+    .ull    { return 'unsigned long long' }
+    .ptr    { return typ.reduce().str() + ' *' }
+    .ary    {
+      last := if typ.suffix.last() < 0 {''} else {'${typ.suffix.last()}'}
+      return typ.reduce().str() + ' [$last]'
+    }
+    .strc   { return '' }
+    .bool   { return '_Bool' }
+    else { parse_err('Something wrong with type') }
+  }
+  return ''
+}
+
 fn (typ Type) size() int {
   kind := typ.kind.last()
   if kind == .void {
-    parse_err('Cannot use incomplete type void')
+    parse_err('Cannot use incomplete type `void`')
   }
   size := match kind {
     .bool, .char, .uchar {1}
@@ -231,6 +262,9 @@ fn (typ Type) size() int {
     .long, .ll, .ulong, .ull, .ptr {8}
     .ary {typ.suffix.last() * typ.reduce().size()}
     else {8}
+  }
+  if size < 0 {
+    parse_err('Cannot use incomplete type `$typ`')
   }
   return size
 }
