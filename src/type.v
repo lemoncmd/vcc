@@ -1,5 +1,9 @@
 module main
 
+const (
+  Types = ['int', 'long', 'short', 'char', 'struct', 'void', 'unsigned', 'signed', '_Bool']
+)
+
 struct Type {
 mut:
   kind []Typekind
@@ -43,7 +47,7 @@ fn (p mut Parser) consume_type_base() (bool, &Type) {
     token = p.tokens[p.pos]
   }
   is_lvar, lvar, _ := p.find_lvar(token.str)
-  if token.kind != .reserved || !(token.str in ['int', 'long', 'short', 'char', 'struct', 'void', 'unsigned', 'signed', '_Bool']) {
+  if token.kind != .reserved || !(token.str in Types) {
     if is_lvar && lvar.is_type {
       p.pos++
       for p.consume('const') {}
@@ -147,11 +151,27 @@ fn (p mut Parser) consume_type_back(typ mut Type) {
 
 fn (p mut Parser) expect_type() string {
   token := p.tokens[p.pos]
-  if token.kind != .reserved || !(token.str in ['int', 'short', 'long', 'char', 'void', '_Bool']) {
+  if token.kind != .reserved || !(token.str in Types) {
     unexp_err(token, 'Expected type but got ${token.str}')
   }
   p.pos++
   return token.str
+}
+
+fn (p Parser) look_for_bracket_with_type() bool {
+  if !p.look_for('(') {return false}
+  if p.tokens[p.pos+1].kind in [.reserved, .ident] {
+    str := p.tokens[p.pos+1].str
+    if str in Types {
+      return true
+    } else {
+      is_lvar, lvar, _ := p.find_lvar(str)
+      if is_lvar && lvar.is_type {
+        return true
+      }
+    }
+  }
+  return false
 }
 
 fn (p mut Parser) consume_type_struct() &Type {
@@ -238,10 +258,10 @@ fn (typ Type) str() string {
     .ushort { return 'unsigned short' }
     .ulong  { return 'unsigned long' }
     .ull    { return 'unsigned long long' }
-    .ptr    { return typ.reduce().str() + ' *' }
+    .ptr    { return '*'+typ.reduce().str() }
     .ary    {
       last := if typ.suffix.last() < 0 {''} else {'${typ.suffix.last()}'}
-      return typ.reduce().str() + ' [$last]'
+      return '[${last}]'+typ.reduce().str()
     }
     .strc   { return '' }
     .bool   { return '_Bool' }

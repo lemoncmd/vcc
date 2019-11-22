@@ -293,11 +293,10 @@ fn (p Parser) gen_calc_unsigned(kind Nodekind, size int) {
       println('  movzb rax, al')
     }
   }
-  match size {
-    1 {println('  movzx rax, al')}
-    2 {println('  movzx rax, ax')}
-    4 {println('  lea rax, [eax]')}
-  }
+  if size == 8 {return}
+  println('  push rax')
+  p.gen_cast(size, true)
+  println('  pop rax')
 }
 
 fn (p mut Parser) gen_arg(node &Node, left int) {
@@ -305,6 +304,25 @@ fn (p mut Parser) gen_arg(node &Node, left int) {
     p.gen_arg(node.right, left-1)
     p.gen(node.left)
   }
+}
+
+fn (p Parser) gen_cast(size int, is_unsigned bool) {
+  if size == 8 {return}
+  println('  pop rax')
+  if is_unsigned {
+    match size {
+      1 {println('  movzx rax, al')}
+      2 {println('  movzx rax, ax')}
+      4 {println('  lea rax, [eax]')}
+    }
+  } else {
+    match size {
+      1 {println('  movsx rax, al')}
+      2 {println('  movsx rax, ax')}
+      4 {println('  movsxd rax, eax')}
+    }
+  }
+  println('  push rax')
 }
 
 fn (p mut Parser) gen(node &Node) {
@@ -582,6 +600,11 @@ fn (p mut Parser) gen(node &Node) {
     .sizof {
       size := node.left.typ.size_allow_void()
       println('  push $size')
+      return
+    }
+    .cast {
+      p.gen(node.left)
+      p.gen_cast(node.typ.size(), node.typ.is_unsigned())
       return
     }
     .nothing {

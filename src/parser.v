@@ -82,6 +82,7 @@ enum Nodekind {
   incf
   decf
   comma
+  cast
 }
 
 struct Function {
@@ -943,6 +944,22 @@ fn (p mut Parser) mul() &Node {
 }
 
 fn (p mut Parser) cast() &Node {
+  if p.look_for_bracket_with_type() {
+    p.expect('(')
+    _, mut typ := p.consume_type_base()
+    p.consume_type_front(mut typ)
+    p.consume_type_back(mut typ)
+    if typ.kind.last() == .ary { // and function and struct
+      p.token_err('Cannot cast to `${typ.str()}`')
+    }
+    p.expect(')')
+    mut node := p.cast()
+    node.add_type()
+    node.typ = node.typ.cast_ary()
+    node = p.new_node(.cast, node, &Node{})
+    node.typ = typ
+    return node
+  }
   return p.unary()
 }
 
