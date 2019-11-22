@@ -40,6 +40,16 @@ fn (p mut Parser) consume_type() (bool, &Type, string) {
   return true, typ, name
 }
 
+fn (p mut Parser) consume_type_nostring() (bool, &Type) {
+  is_typ, typ := p.consume_type_base()
+  if !is_typ {
+    return false, typ
+  }
+  p.consume_type_front(mut typ)
+  p.consume_type_back(mut typ)
+  return true, typ
+}
+
 fn (p mut Parser) consume_type_base() (bool, &Type) {
   mut token := p.tokens[p.pos]
   mut typ := &Type{}

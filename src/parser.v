@@ -946,9 +946,7 @@ fn (p mut Parser) mul() &Node {
 fn (p mut Parser) cast() &Node {
   if p.look_for_bracket_with_type() {
     p.expect('(')
-    _, mut typ := p.consume_type_base()
-    p.consume_type_front(mut typ)
-    p.consume_type_back(mut typ)
+    _, typ := p.consume_type_nostring()
     if typ.kind.last() == .ary { // and function and struct
       p.token_err('Cannot cast to `${typ.str()}`')
     }
@@ -965,6 +963,17 @@ fn (p mut Parser) cast() &Node {
 
 fn (p mut Parser) unary() &Node {
   if p.consume('sizeof') {
+    if p.look_for_bracket_with_type() {
+      p.expect('(')
+      is_typ, typ := p.consume_type_nostring()
+      if !is_typ {
+        p.token_err('Expected type')
+      }
+      p.expect(')')
+      mut node := p.new_node_num(0)
+      node.typ = typ
+      return p.new_node(.sizof, node, &Node{})
+    }
     return p.new_node(.sizof, p.unary(), &Node{})
   } else if p.consume('*') {
     return p.new_node(.deref, p.unary(), &Node{})
