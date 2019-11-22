@@ -998,39 +998,42 @@ fn (p mut Parser) unary() &Node {
 fn (p mut Parser) postfix() &Node {
   mut node := p.primary()
 
-  if p.consume('++') {
-    node = p.new_node(.incb, node, &Node{})
-  } else if p.consume('--') {
-    node = p.new_node(.decb, node, &Node{})
-  }
-  for p.consume('[') {
-    mut right := p.expr()
-    node.add_type()
-    right.add_type()
-    mut typ := &Type{}
-    if node.typ.is_ptr() && right.typ.is_int() {
-      typ = node.typ.reduce()
-      num := p.new_node_num(typ.size_allow_void())
-      typ.kind = node.typ.kind.clone()
-      typ.suffix = node.typ.suffix.clone()
-      right = p.new_node(.mul, right, num)
-      right.typ = typ.clone()
-    } else if node.typ.is_int() && right.typ.is_ptr() {
-      typ = right.typ.reduce()
-      num := p.new_node_num(typ.size_allow_void())
-      typ.kind = node.typ.kind.clone()
-      typ.suffix = node.typ.suffix.clone()
-      node = p.new_node(.mul, node, num)
-      node.typ = typ.clone()
-    } else if node.typ.is_int() && right.typ.is_int() {
-      p.token_err('either expression in a[b] should be pointer')
+  for {
+    if p.consume('++') {
+      node = p.new_node(.incb, node, &Node{})
+    } else if p.consume('--') {
+      node = p.new_node(.decb, node, &Node{})
+    } else if p.consume('[') {
+      mut right := p.expr()
+      node.add_type()
+      right.add_type()
+      mut typ := &Type{}
+      if node.typ.is_ptr() && right.typ.is_int() {
+        typ = node.typ.reduce()
+        num := p.new_node_num(typ.size_allow_void())
+        typ.kind = node.typ.kind.clone()
+        typ.suffix = node.typ.suffix.clone()
+        right = p.new_node(.mul, right, num)
+        right.typ = typ.clone()
+      } else if node.typ.is_int() && right.typ.is_ptr() {
+        typ = right.typ.reduce()
+        num := p.new_node_num(typ.size_allow_void())
+        typ.kind = node.typ.kind.clone()
+        typ.suffix = node.typ.suffix.clone()
+        node = p.new_node(.mul, node, num)
+        node.typ = typ.clone()
+      } else if node.typ.is_int() && right.typ.is_int() {
+        p.token_err('either expression in a[b] should be pointer')
+      } else {
+        p.token_err('both body and suffix are pointers in a[b] expression')
+      }
+      node = p.new_node(.add, node, right)
+      node.typ = typ
+      node = p.new_node(.deref, node, &Node{})
+      p.expect(']')
     } else {
-      p.token_err('both body and suffix are pointers in a[b] expression')
+      return node
     }
-    node = p.new_node(.add, node, right)
-    node.typ = typ
-    node = p.new_node(.deref, node, &Node{})
-    p.expect(']')
   }
   return node
 }
