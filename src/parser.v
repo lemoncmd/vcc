@@ -390,7 +390,7 @@ fn (p mut Parser) top() {
   if !is_typ {
     p.token_err('Expected type')
   }
-  p.consume_type_front(mut typ)
+  typ.merge(p.consume_type_front())
   name := p.expect_ident()
   if p.consume('(') {
     mut func := p.function(name, typ)
@@ -400,7 +400,7 @@ fn (p mut Parser) top() {
     if name in p.global {
       p.token_err('`$name` is already declared')
     }
-    p.consume_type_back(mut typ)
+    typ.merge(p.consume_type_back())
     p.expect(';')
     mut gvar := p.new_gvar(name, typ)
     gvar.is_static = is_static
@@ -659,9 +659,8 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
         } else {
           p.expect(',')
         }
-        p.consume_type_front(mut typ)
-        name := p.expect_ident()
-        p.consume_type_back(mut typ)
+        typb, name := p.consume_type_body()
+        typ.merge(typb)
         if is_static {
           is_lvar, _, is_curbl := p.find_lvar(name)
           if is_lvar && is_curbl {
