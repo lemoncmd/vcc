@@ -60,7 +60,7 @@ fn tokenize(p string) []Tok {
     }
 
     if pos + 2 <= p.len && p[pos..pos+2] == '//' {
-      for pos < p.len && p[pos] != `\n` {
+      for pos < p.len && p[pos-1] != `\\` && p[pos] != `\n` {
         pos++
         lpos++
       }
@@ -81,6 +81,12 @@ fn tokenize(p string) []Tok {
       pos++
       line++
       continue
+    }
+
+    if pos + 2 <= p.len && p[pos..pos+2] == '\\\n' {
+      pos += 2
+      lpos = 0
+      line++
     }
 
     reserves := [
@@ -142,7 +148,11 @@ fn tokenize(p string) []Tok {
           lpos = 0
         }
       }
-      tokens << new_token(.string, p[start_pos..pos].replace('\\\n', ''), line, lpos)
+      if tokens.len > 0 && tokens[tokens.len-1].kind == .string {
+        tokens[tokens.len-1] = new_token(.string, tokens[tokens.len-1].str + p[start_pos..pos].replace('\\\n', ''), line, lpos)
+      } else {
+        tokens << new_token(.string, p[start_pos..pos].replace('\\\n', ''), line, lpos)
+      }
       pos++
       lpos++
       continue
