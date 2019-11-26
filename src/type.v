@@ -9,6 +9,7 @@ mut:
   kind []Typekind
   suffix []int
   strc []Strcwrap
+  func []Funcargwrap
 }
 
 enum Typekind {
@@ -26,6 +27,7 @@ enum Typekind {
   ptr
   ary
   strc
+  func
   bool
 }
 
@@ -38,6 +40,23 @@ fn (p mut Parser) consume_type() (bool, &Type, string) {
   typb, str := p.consume_type_body()
   name = str
   typ.merge(typb)
+  if name == '' {
+    p.token_err('There must be name in the definition')
+  }
+  p.check_func_typ(typ)
+  return true, typ, name
+}
+
+fn (p mut Parser) consume_type_allow_no_ident() (bool, &Type, string) {
+  is_typ, mut typ := p.consume_type_base()
+  mut name := ''
+  if !is_typ {
+    return false, typ, name
+  }
+  typb, str := p.consume_type_body()
+  name = str
+  typ.merge(typb)
+  p.check_func_typ(typ)
   return true, typ, name
 }
 
@@ -52,7 +71,7 @@ fn (p mut Parser) consume_type_body() (&Type, string) {
     typ.merge(p.consume_type_back())
     typ.merge(typb)
   } else {
-    name = p.expect_ident()
+    _, name = p.consume_ident()
     typ.merge(p.consume_type_back())
   }
   return typ, name
@@ -64,6 +83,7 @@ fn (p mut Parser) consume_type_nostring() (bool, &Type) {
     return false, typ
   }
   typ.merge(p.consume_type_body_nostring())
+  p.check_func_typ(typ)
   return true, typ
 }
 
@@ -190,6 +210,45 @@ fn (p mut Parser) consume_type_back() &Type {
     typ = p.consume_type_back()
     typ.kind << Typekind.ary
     typ.suffix << number
+  } else if p.consume('(') {
+    mut first := true
+    mut paras := []string
+    mut args := &Funcarg{}
+    for !p.consume(')') {
+      if first {
+        if p.consume('void') {
+          p.expect(')')
+          break
+        }
+        first = false
+      } else {
+        p.expect(',')
+      }
+      if p.consume('...') {
+        p.expect(')')
+        break
+      }
+      is_typ, mut argtyp, name := p.consume_type_allow_no_ident()
+      if !is_typ {
+        p.token_err('Expected type')
+      }
+      if argtyp.kind.last() == .ary {
+        argtyp = argtyp.reduce()
+        argtyp.size()
+        argtyp.kind << Typekind.ptr
+      }
+      if name in paras {
+        p.token_err('parameter `$name` is already declared')
+      }
+      if name != '' {
+        paras << name
+      }
+      lvar := p.new_lvar(name, argtyp, 0)
+      args.args << Lvarwrap{lvar}
+    }
+    typ = p.consume_type_back()
+    typ.kind << Typekind.func
+    typ.func << Funcargwrap{args}
   }
   return typ
 }
@@ -286,6 +345,18 @@ fn (p mut Parser) consume_type_struct() &Type {
   return &Type{}
 }
 
+fn (p Parser) check_func_typ(_typ &Type) {
+  mut typ := _typ.clone()
+  mut is_func := false
+  for typ.kind.len != 0 {
+    if is_func && (typ.kind.last() in [.func, .ary]) {
+      p.token_err('Function cannot return type `${typ.str()}`')
+    }
+    is_func = typ.kind.last() == .func
+    typ = typ.reduce()
+  }
+}
+
 fn align(offset, size int) int {
   return (offset+size-1) & ~(size-1)
 }
@@ -316,8 +387,17 @@ fn (typ Type) str() string {
       last := if typ.suffix.last() < 0 {''} else {'${typ.suffix.last()}'}
       return '[${last}]'+typ.reduce().str()
     }
-    .strc   { return '' }
+    .strc   { return '' } //todo
     .bool   { return '_Bool' }
+    .func   {
+      args := typ.func.last()
+      mut strs := []string
+      for lvar in args.val.args {
+        strs << lvar.val.typ.str()
+      }
+      str := strs.join(', ')
+      return 'fn($str) '+typ.reduce().str()
+    }
     else { parse_err('Something wrong with type') }
   }
   return ''
@@ -332,7 +412,7 @@ fn (typ Type) size() int {
     .bool, .char, .uchar {1}
     .short, .ushort {2}
     .int, .uint {4}
-    .long, .ll, .ulong, .ull, .ptr {8}
+    .long, .ll, .ulong, .ull, .ptr, .func {8}
     .ary {typ.suffix.last() * typ.reduce().size()}
     else {8}
   }
@@ -343,7 +423,7 @@ fn (typ Type) size() int {
 }
 
 fn (typ Type) size_allow_void() int {
-  if typ.kind.last() == .void {
+  if typ.kind.last() in [.void, .func] {
     return 1
   } else {
     return typ.size()
@@ -351,11 +431,13 @@ fn (typ Type) size_allow_void() int {
 }
 
 fn (typ Type) reduce() &Type {
-  mut typ2 := &Type{}
-  typ2.kind = typ.kind.clone()
-  typ2.suffix = typ.suffix.clone()
+  mut typ2 := typ.clone()
   if typ2.kind.last() == .ary {
     typ2.suffix.delete(typ2.suffix.len-1)
+  } else if typ2.kind.last() == .strc {
+    typ2.strc.delete(typ2.strc.len-1)
+  } else if typ2.kind.last() == .func {
+    typ2.func.delete(typ2.func.len-1)
   }
   typ2.kind.delete(typ2.kind.len-1)
   return typ2
@@ -365,6 +447,8 @@ fn (typ Type) clone() &Type {
   mut typ2 := &Type{}
   typ2.kind = typ.kind.clone()
   typ2.suffix = typ.suffix.clone()
+  typ2.strc = typ.strc.clone()
+  typ2.func = typ.func.clone()
   return typ2
 }
 
@@ -381,6 +465,8 @@ fn (typ Type) cast_ary() &Type {
 fn (typ mut Type) merge(typ2 &Type) {
   typ.kind << typ2.kind
   typ.suffix << typ2.suffix
+  typ.strc << typ2.strc
+  typ.func << typ2.func
 }
 
 fn (typ Type) is_int() bool {
@@ -475,17 +561,16 @@ fn (node mut Node) add_type() {
     }
     .deref {
       if node.left.typ.is_ptr() {
-        typ.kind = node.left.typ.kind.clone()
-        typ.suffix = node.left.typ.suffix.clone()
-        typ = typ.reduce()
+        typ = node.left.typ.reduce()
+      } else if node.left.typ.kind.last() == .func {
+        typ = node.left.typ.clone()
       } else {
         typ.kind << Typekind.int
       }
       node.typ = typ
     }
     .addr {
-      typ.kind = node.left.typ.kind.clone()
-      typ.suffix = node.left.typ.suffix.clone()
+      typ = node.left.typ.clone()
       if typ.kind.last() == .ary {
         typ = typ.reduce()
       }

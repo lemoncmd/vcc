@@ -36,6 +36,11 @@ mut:
   val &Struct
 }
 
+struct Funcargwrap{
+mut:
+  val &Funcarg
+}
+
 enum Nodekind {
   nothing
   assign
@@ -95,6 +100,7 @@ mut:
   offset int
   labels []string
   is_static bool
+  is_defined bool
 }
 
 struct Node {
@@ -137,6 +143,11 @@ enum Structkind {
   strc
   unn
   enm
+}
+
+struct Funcarg {
+mut:
+  args []Lvarwrap
 }
 
 fn (p Parser) look_for(op string) bool {
@@ -187,7 +198,7 @@ fn (p mut Parser) consume_string() (bool, string) {
 
 fn (p mut Parser) consume_any(ops []string) (bool, string) {
   token := p.tokens[p.pos]
-  if token.kind == .reserved && token.str in ops {
+  if token.kind == .reserved && (token.str in ops) {
     p.pos++
     return true, token.str
   }
@@ -386,73 +397,68 @@ fn (p mut Parser) top() {
   } else {
     p.consume('typedef')
   }
-  is_typ, mut typ := p.consume_type_base()
+  is_typ, typ, name := p.consume_type()
   if !is_typ {
     p.token_err('Expected type')
   }
-  typ.merge(p.consume_type_front())
-  name := p.expect_ident()
-  if p.consume('(') {
+  if name in p.global {//todo
+    gvar := p.global[name].val
+    if gvar.typ.kind.last() == .func && typ.kind.last() == .func {
+      if is_typedef || gvar.is_type {
+        p.token_err('`$name` is already declared')
+      }
+    } else {
+      p.token_err('`$name` is already declared')
+    }
+  }
+  mut gvar := p.new_gvar(name, typ)
+  gvar.is_static = is_static
+  gvar.is_extern = is_extern
+  gvar.is_type = is_typedef
+  p.global[name] = Lvarwrap{gvar}
+  if p.consume('{') {
+    if typ.kind.last() != .func {
+      p.token_err('Expected `;` after top level declarator')
+    }
     mut func := p.function(name, typ)
     func.is_static = is_static
     p.code[name] = Funcwrap{func}
   } else {
-    if name in p.global {
-      p.token_err('`$name` is already declared')
-    }
-    typ.merge(p.consume_type_back())
     p.expect(';')
-    mut gvar := p.new_gvar(name, typ)
-    gvar.is_static = is_static
-    gvar.is_extern = is_extern
-    gvar.is_type = is_typedef
-    p.global[name] = Lvarwrap{gvar}
   }
 }
 
-fn (p mut Parser) fnargs() (&Node, []Lvarwrap, int) {
-  is_typ, mut typ, name := p.consume_type()
-  if !is_typ {
-    p.token_err('Expected type')
-  }
-  if typ.kind.last() == .ary {
-    typ = typ.reduce()
-    typ.size()
-    typ.kind << Typekind.ptr
-  }
-  mut lvar := p.new_lvar(name, typ, 0)
-  is_lvar, _, is_curbl := p.find_lvar(name)
-  if is_lvar && is_curbl {
-    p.token_err('`$name` is already declared')
-  }
-
-  p.curfn.offset += typ.size()
-  p.curfn.offset = align(p.curfn.offset, typ.size())
-  offset := p.curfn.offset
-  lvar.offset = offset
-  lvar_node := p.new_node_lvar(lvar.offset, typ)
-
-  if p.consume(',') {
-    args, mut lvars, num := p.fnargs()
+fn (p mut Parser) fnargs(args &Funcarg) (&Node, []Lvarwrap) {
+  mut lvars := []Lvarwrap
+  mut node := &Node{}
+  for arg in args.args {
+    name := arg.val.name
+    typ := arg.val.typ
+    if name == '' {
+      p.token_err('Parameter name omitted')
+    }
+    mut lvar := p.new_lvar(name, typ, 0)
+    p.curfn.offset += typ.size()
+    p.curfn.offset = align(p.curfn.offset, typ.size())
+    offset := p.curfn.offset
+    lvar.offset = offset
     lvars << Lvarwrap{lvar}
-    return p.new_node(.fnargs, lvar_node, args), lvars, num+1
   }
-  return p.new_node(.fnargs, lvar_node, &Node{}), [Lvarwrap{lvar}], 1
+  for _lvar in lvars.reverse() {
+    lvar := _lvar.val
+    lvar_node := p.new_node_lvar(lvar.offset, lvar.typ)
+    node = p.new_node(.fnargs, lvar_node, node)
+  }
+  return node, lvars
 }
 
 fn (p mut Parser) function(name string, typ &Type) &Function {
-  mut func := p.new_func(name, typ)
+  mut func := p.new_func(name, typ.reduce())
   p.curfn = func
-  mut num := 0
-  mut args := &Node{}
-  mut lvars := []Lvarwrap
-  if !p.consume(')') {
-    _args, _lvars, _num := p.fnargs()
-    args = _args
-    num = _num
-    lvars << _lvars
-    p.expect(')')
-  }
+  funcarg := typ.func.last()
+  num := funcarg.val.args.len
+  args, lvars := p.fnargs(funcarg.val)
+
   func.args = args
   func.num = num
   mut content := p.new_node(.block, &Node{}, &Node{})
@@ -492,7 +498,7 @@ fn (p mut Parser) stmt() &Node {
       p.expect(';')
     }
     node = p.new_node(.ret, node, &Node{})
-  } else if p.look_for('{') {
+  } else if p.consume('{') {
     node = p.block()
   } else if p.consume('if') {
     p.expect('(')
@@ -574,6 +580,7 @@ fn (p mut Parser) stmt() &Node {
     mut block := p.new_node(.block, &Node{}, &Node{})
     block.secondkind = .swich
     p.curbl << Nodewrap{block}
+    p.expect('{')
     p.block_without_curbl(mut block)
     p.curbl.delete(p.curbl.len-1)
     p.cursw.delete(p.cursw.len-1)
@@ -641,7 +648,6 @@ fn (p mut Parser) block() &Node {
 }
 
 fn (p mut Parser) block_without_curbl(node mut Node) {
-  p.expect('{')
   for !p.consume('}') {
     is_static := p.consume('static')
     is_typedef := if is_static {
@@ -671,6 +677,14 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
           mut lvar := p.new_lvar(name, typ, offset)
           lvar.is_static = true
           p.global['$name\.$offset'] = Lvarwrap{lvar}
+          mut block := p.curbl.last()
+          block.val.locals << voidptr(lvar)
+        } else if typ.kind.last() == .func {
+          is_lvar, _, is_curbl := p.find_lvar(name)
+          if is_lvar && is_curbl {
+            p.token_err('`$name` is already declared')
+          }
+          mut lvar := p.new_lvar(name, typ, 0)
           mut block := p.curbl.last()
           block.val.locals << voidptr(lvar)
         } else {
@@ -946,7 +960,7 @@ fn (p mut Parser) cast() &Node {
   if p.look_for_bracket_with_type() {
     p.expect('(')
     _, typ := p.consume_type_nostring()
-    if typ.kind.last() == .ary { // and function and struct
+    if typ.kind.last() in [.ary, .func, .strc] {
       p.token_err('Cannot cast to `${typ.str()}`')
     }
     p.expect(')')
@@ -1086,7 +1100,7 @@ fn (p mut Parser) primary() &Node {
   } else if lvar.is_type {
     p.token_err('`$name` is declared as type')
   }
-  node := if lvar.is_global {
+  node := if lvar.is_global || lvar.typ.kind.last() == .func {
     p.new_node_gvar(lvar.offset, lvar.typ, name)
   } else if lvar.is_static {
     p.new_node_gvar(lvar.offset, lvar.typ, '$name\.$lvar.offset')

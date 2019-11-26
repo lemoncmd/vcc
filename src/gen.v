@@ -14,7 +14,7 @@ fn (p mut Parser) gen_main() {
   for name, _gvar in p.global {
     gvar := _gvar.val
     size := gvar.typ.size()
-    if !gvar.is_extern && !gvar.is_type {
+    if !gvar.is_extern && !gvar.is_type && gvar.typ.kind.last() != .func {
       if !gvar.is_static {
         println('.global $name')
       }
@@ -89,7 +89,7 @@ fn (p mut Parser) gen_main() {
 }
 
 fn (p mut Parser) gen_lval(node &Node) {
-  if node.kind != .lvar && node.kind != .deref {
+  if !(node.kind in [.lvar, .deref]) {
     parse_err('Assignment Error: left value is invalid')
   }
 
@@ -103,7 +103,7 @@ fn (p mut Parser) gen_lval(node &Node) {
 }
 
 fn (p mut Parser) gen_gval(node &Node) {
-  if node.kind != .gvar && node.kind != .deref {
+  if !(node.kind in [.gvar, .deref]) {
     parse_err('Assignment Error: left value is invalid')
   }
 
@@ -117,8 +117,8 @@ fn (p mut Parser) gen_gval(node &Node) {
 
 fn (p Parser) gen_inc(kind Nodekind, typ &Type){
   println('  pop rax')
-  if typ.kind.last() == .ary {
-    parse_err('you cannot inc/decrement array')
+  if typ.kind.last() in [.ary, .func, .strc] {
+    parse_err('you cannot inc/decrement type `${typ.str()}`')
   }
   cmd := if kind in [.incb, .incf] {
     'add'
@@ -295,7 +295,7 @@ fn (p Parser) gen_calc_unsigned(kind Nodekind, size int) {
   }
   if size == 8 {return}
   println('  push rax')
-  p.gen_cast(size, true)
+  p.gen_cast(size, true, false)
   println('  pop rax')
 }
 
@@ -306,8 +306,14 @@ fn (p mut Parser) gen_arg(node &Node, left int) {
   }
 }
 
-fn (p Parser) gen_cast(size int, is_unsigned bool) {
+fn (p Parser) gen_cast(size int, is_unsigned bool, is_bool bool) {
   if size == 8 {return}
+  if is_bool {
+    println('  cmp rax, 0')
+    println('  setne al')
+    println('  movzb rax, al')
+    return
+  }
   println('  pop rax')
   if is_unsigned {
     match size {
@@ -330,6 +336,8 @@ fn (p mut Parser) gen(node &Node) {
     .ret {
       if node.left.kind != .nothing {
         p.gen(node.left)
+        typ := p.curfn.typ
+        p.gen_cast(typ.size(), typ.is_unsigned(), typ.kind.last() == .bool)
         println('  pop rax')
       }
       println('  jmp .L.return.${p.curfn.name}')
@@ -345,7 +353,7 @@ fn (p mut Parser) gen(node &Node) {
     }
     .deref {
       p.gen(node.left)
-      if node.typ.kind.last() != .ary {
+      if !(node.typ.kind.last() in [.ary, .func]) {
         p.gen_load(node.typ)
       }
       return
@@ -520,7 +528,7 @@ fn (p mut Parser) gen(node &Node) {
     }
     .gvar {
       p.gen_gval(node)
-      if node.typ.kind.last() != .ary {
+      if !(node.typ.kind.last() in [.ary, .func]) {
         p.gen_load(node.typ)
       }
       return
@@ -528,6 +536,8 @@ fn (p mut Parser) gen(node &Node) {
     .assign {
       if node.left.typ.kind.last() == .ary {
         parse_err('Assignment Error: array body is not assignable')
+      } else if node.left.typ.kind.last() == .func {
+        parse_err('Assignment Error: function is not assignable')
       }
       if node.left.kind == .lvar {
         p.gen_lval(node.left)
@@ -541,6 +551,8 @@ fn (p mut Parser) gen(node &Node) {
     .calcassign {
       if node.left.typ.kind.last() == .ary {
         parse_err('Assignment Error: array body is not assignable')
+      } else if node.left.typ.kind.last() == .func {
+        parse_err('Assignment Error: function is not assignable')
       }
       if node.left.kind == .lvar {
         p.gen_lval(node.left)
@@ -604,7 +616,7 @@ fn (p mut Parser) gen(node &Node) {
     }
     .cast {
       p.gen(node.left)
-      p.gen_cast(node.typ.size(), node.typ.is_unsigned())
+      p.gen_cast(node.typ.size(), node.typ.is_unsigned(), node.typ.kind.last() == .bool)
       return
     }
     .nothing {
