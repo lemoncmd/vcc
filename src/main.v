@@ -38,6 +38,7 @@ fn main(){
     tokens:tokenize(program),
     pos:0
     statics:1972
+    curfn:0
   }
   parser.program()
   parser.gen_main()

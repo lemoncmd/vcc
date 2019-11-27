@@ -89,7 +89,7 @@ fn (p mut Parser) gen_main() {
 }
 
 fn (p mut Parser) gen_lval(node &Node) {
-  if !(node.kind in [.lvar, .deref]) {
+  if !node.kind in [.lvar, .deref] {
     parse_err('Assignment Error: left value is invalid')
   }
 
@@ -103,7 +103,7 @@ fn (p mut Parser) gen_lval(node &Node) {
 }
 
 fn (p mut Parser) gen_gval(node &Node) {
-  if !(node.kind in [.gvar, .deref]) {
+  if !node.kind in [.gvar, .deref] {
     parse_err('Assignment Error: left value is invalid')
   }
 
@@ -353,7 +353,7 @@ fn (p mut Parser) gen(node &Node) {
     }
     .deref {
       p.gen(node.left)
-      if !(node.typ.kind.last() in [.ary, .func]) {
+      if !node.typ.kind.last() in [.ary, .func] {
         p.gen_load(node.typ)
       }
       return
@@ -505,7 +505,7 @@ fn (p mut Parser) gen(node &Node) {
       return
     }
     .gozu {
-      if !(node.name in p.curfn.labels) {
+      if !node.name in p.curfn.labels {
         parse_err('${node.name} used in goto but not declared')
       }
       println('  jmp .L.label.${node.name}')
@@ -528,7 +528,7 @@ fn (p mut Parser) gen(node &Node) {
     }
     .gvar {
       p.gen_gval(node)
-      if !(node.typ.kind.last() in [.ary, .func]) {
+      if !node.typ.kind.last() in [.ary, .func] {
         p.gen_load(node.typ)
       }
       return
@@ -576,6 +576,11 @@ fn (p mut Parser) gen(node &Node) {
     }
     .call {
       mut args := node.left
+      name := if node.name == '' {
+        'rdx'
+      } else {
+        node.name
+      }
       println('  push 1')
       println('  mov rax, rsp')
       println('  and rax, 15')
@@ -592,8 +597,12 @@ fn (p mut Parser) gen(node &Node) {
       for i in Regs.left(node.num) {
         println('  pop $i')
       }
+      if node.name == '' {
+        p.gen(node.right)
+        println('  pop rdx')
+      }
       println('  mov rax, 0')
-      println('  call ${node.name}')
+      println('  call $name')
       if node.num > 6 {
         overed := 8 * (node.num - 6)
         println('  add rsp, $overed')

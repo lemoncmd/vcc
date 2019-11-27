@@ -108,7 +108,7 @@ fn (p mut Parser) consume_type_base() (bool, &Type) {
     token = p.tokens[p.pos]
   }
   is_lvar, lvar, _ := p.find_lvar(token.str)
-  if token.kind != .reserved || !(token.str in Types) {
+  if token.kind != .reserved || !token.str in Types {
     if is_lvar && lvar.is_type {
       p.pos++
       for p.consume('const') {}
@@ -132,6 +132,7 @@ fn (p mut Parser) consume_type_base() (bool, &Type) {
     if is_signed || is_unsigned {
       p.token_err('Struct cannot be signed or unsigned')
     }
+    p.pos++
     typ = p.consume_type_struct()
   } else if token.str == '_Bool' {
     if is_signed || is_unsigned {
@@ -237,6 +238,9 @@ fn (p mut Parser) consume_type_back() &Type {
         argtyp.size()
         argtyp.kind << Typekind.ptr
       }
+      if argtyp.kind.last() == .func {
+        argtyp.kind << Typekind.ptr
+      }
       if name in paras {
         p.token_err('parameter `$name` is already declared')
       }
@@ -255,7 +259,7 @@ fn (p mut Parser) consume_type_back() &Type {
 
 fn (p mut Parser) expect_type() string {
   token := p.tokens[p.pos]
-  if token.kind != .reserved || !(token.str in Types) {
+  if token.kind != .reserved || !token.str in Types {
     unexp_err(token, 'Expected type but got ${token.str}')
   }
   p.pos++
@@ -290,11 +294,11 @@ fn (p mut Parser) consume_type_struct() &Type {
   mut typ := &Type{}
   typ.kind << Typekind.strc
   is_ident, name := p.consume_ident()
-  mut is_decl := false
+  mut is_protoed := false
   if is_ident {
-    is_struct, strc, is_curbl := p.find_struct(name)
+    is_struct, mut strc, is_curbl := p.find_struct(name)
     if is_struct {
-      if is_curbl {
+      if is_curbl && strc.is_defined {
         if p.consume('{') {
           parse_err('struct $name is already declared in the block')
         }
@@ -302,54 +306,81 @@ fn (p mut Parser) consume_type_struct() &Type {
         return typ
       }
       if p.consume('{') {
-        is_decl = true
+        is_protoed = is_curbl && !strc.is_defined
       } else {
         typ.strc << Strcwrap{strc}
         return typ
       }
     } else {
-      if p.consume('{') {
-        is_decl = true
-      }
-    }
-  }
-  if is_decl {
-    mut strc := &Struct{name:name, kind:.strc}
-    for !p.consume('}') {
-      is_dec, typ_base := p.consume_type_base()
-      if is_dec {
-        mut first := true
-        for !p.consume(';') {
-          mut typ_child := typ_base.clone()
-          if first {
-            first = false
-          } else {
-            p.expect(',')
-          }
-          typ_child.merge(p.consume_type_front())
-          name_child := p.expect_ident()
-          if name_child in strc.content {
-            parse_err('duplicated member $name')
-          }
-          typ_child.merge(p.consume_type_back())
-          strc.offset = align(strc.offset, typ_child.size())
-          lvar := &Lvar{name_child, typ_child, false, false, false, false, strc.offset}
-          strc.offset += typ_child.size()
-          strc.content[name_child] = Lvarwrap{lvar}
+      if !p.consume('{') {
+        strc2 := &Struct{name:name, kind:.strc}
+        if p.curbl.len == 0 {
+          p.glstrc[name] = Strcwrap{strc2}
+        } else {
+          mut curbl := (p.curbl.last()).val
+          curbl.structs[name] = Strcwrap{strc2}
         }
-      } else {
-        parse_err('expected type')
+        typ.strc << Strcwrap{strc2}
+        return typ
       }
     }
+  } else {
+    p.expect('{')
   }
-  return &Type{}
+  _, _strc, _ := p.find_struct(name)
+  mut strc := if is_protoed {
+    _strc
+  } else {
+    &Struct{name:name, kind:.strc}
+  }
+  if !is_protoed && name != '' {
+    if p.curbl.len == 0 {
+      p.glstrc[name] = Strcwrap{strc}
+    } else {
+      mut curbl := (p.curbl.last()).val
+      curbl.structs[name] = Strcwrap{strc}
+    }
+  }
+  mut max_align := 1
+  for !p.consume('}') {
+    is_dec, typ_base := p.consume_type_base()
+    if is_dec {
+      mut first := true
+      for !p.consume(';') {
+        mut typ_child := typ_base.clone()
+        if first {
+          first = false
+        } else {
+          p.expect(',')
+        }
+        typ_child.merge(p.consume_type_front())
+        name_child := p.expect_ident()
+        if name_child in strc.content {
+          parse_err('duplicated member $name')
+        }
+        typ_child.merge(p.consume_type_back())
+        strc.offset = align(strc.offset, typ_child.size_align())
+        max_align = if typ_child.size_align() > max_align {typ_child.size_align()} else {max_align}
+        lvar := &Lvar{name_child, typ_child, false, false, false, false, strc.offset}
+        strc.offset += typ_child.size()
+        strc.content[name_child] = Lvarwrap{lvar}
+      }
+    } else {
+      parse_err('expected type')
+    }
+  }
+  strc.is_defined = true
+  strc.max_align = max_align
+  strc.offset = align(strc.offset, max_align)
+  typ.strc << Strcwrap{strc}
+  return typ
 }
 
 fn (p Parser) check_func_typ(_typ &Type) {
   mut typ := _typ.clone()
   mut is_func := false
   for typ.kind.len != 0 {
-    if is_func && (typ.kind.last() in [.func, .ary]) {
+    if is_func && typ.kind.last() in [.func, .ary] {
       p.token_err('Function cannot return type `${typ.str()}`')
     }
     is_func = typ.kind.last() == .func
@@ -408,6 +439,14 @@ fn (typ Type) size() int {
   if kind == .void {
     parse_err('Cannot use incomplete type `void`')
   }
+  if kind == .strc {
+    strc := (typ.strc.last()).val
+    if !strc.is_defined {
+      parse_err('Incomplete struct ${strc.name}')
+    } else {
+      return strc.offset
+    }
+  }
   size := match kind {
     .bool, .char, .uchar {1}
     .short, .ushort {2}
@@ -425,6 +464,16 @@ fn (typ Type) size() int {
 fn (typ Type) size_allow_void() int {
   if typ.kind.last() in [.void, .func] {
     return 1
+  } else {
+    return typ.size()
+  }
+}
+
+fn (typ Type) size_align() int {
+  if typ.kind.last() == .ary {
+    return typ.reduce().size_align()
+  } else if typ.kind.last() == .strc {
+    return (typ.strc.last()).val.max_align
   } else {
     return typ.size()
   }
@@ -543,7 +592,7 @@ fn (node mut Node) add_type() {
       }
     }
     .incb, .decb, .incf, .decf, .shl, .shr, .bitnot {
-      if (node.kind in [.shl, .shr, .bitnot] && node.left.typ.is_ptr()) || ((node.kind in [.shl, .shr]) && node.right.typ.is_ptr()) {
+      if (node.kind in [.shl, .shr, .bitnot] && node.left.typ.is_ptr()) || (node.kind in [.shl, .shr] && node.right.typ.is_ptr()) {
         parse_err('Invalid operand type')
       }
       node.typ = node.left.typ.cast_ary()

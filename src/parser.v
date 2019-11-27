@@ -135,8 +135,10 @@ struct Struct {
   name string
   kind Structkind
 mut:
+  is_defined bool
   content map[string]Lvarwrap
   offset int
+  max_align int
 }
 
 enum Structkind {
@@ -198,7 +200,7 @@ fn (p mut Parser) consume_string() (bool, string) {
 
 fn (p mut Parser) consume_any(ops []string) (bool, string) {
   token := p.tokens[p.pos]
-  if token.kind == .reserved && (token.str in ops) {
+  if token.kind == .reserved && token.str in ops {
     p.pos++
     return true, token.str
   }
@@ -239,6 +241,9 @@ fn (p Parser) new_node(kind Nodekind, left, right &Node) &Node {
     right:right
     num:0
     offset:0
+    typ:0
+    cond:0
+    first:0
   }
   return node
 }
@@ -250,7 +255,8 @@ fn (p Parser) new_node_with_cond(kind Nodekind, cond, left, right &Node, num int
     left:left
     right:right
     num:num
-    offset:0
+    first:0
+    typ:0
   }
   return node
 }
@@ -263,7 +269,7 @@ fn (p Parser) new_node_with_all(kind Nodekind, first, cond, left, right &Node, n
     left:left
     right:right
     num:num
-    offset:0
+    typ:0
   }
   return node
 }
@@ -272,7 +278,11 @@ fn (p Parser) new_node_num(num int) &Node {
   node := &Node{
     kind:.num
     num:num
-    offset:0
+    left:0
+    right:0
+    typ:0
+    cond:0
+    first:0
   }
   return node
 }
@@ -282,6 +292,11 @@ fn (p Parser) new_node_string(str string, id int) &Node {
     kind:.string
     offset:id
     name:str
+    left:0
+    right:0
+    typ:0
+    cond:0
+    first:0
   }
   return node
 }
@@ -291,6 +306,10 @@ fn (p Parser) new_node_lvar(offset int, typ &Type) &Node {
     kind:.lvar
     offset:offset
     typ:typ
+    left:0
+    right:0
+    cond:0
+    first:0
   }
   return node
 }
@@ -301,6 +320,10 @@ fn (p Parser) new_node_gvar(offset int, typ &Type, name string) &Node {
     offset:offset
     typ:typ
     name:name
+    left:0
+    right:0
+    cond:0
+    first:0
   }
   return node
 }
@@ -309,9 +332,24 @@ fn (p Parser) new_node_call(kind Nodekind, num int, name string, args &Node) &No
   node := &Node{
     kind:kind
     left:args
+    right:0
+    typ:0
+    cond:0
+    first:0
     num:num
-    offset:0
     name:name
+  }
+  return node
+}
+
+fn (p Parser) new_node_nothing() &Node {
+  node := &Node{
+    kind:.nothing
+    left:0
+    right:0
+    typ:0
+    cond:0
+    first:0
   }
   return node
 }
@@ -320,6 +358,8 @@ fn (p Parser) new_func(name string, typ &Type) &Function {
   func := &Function{
     name: name
     typ: typ
+    args:0
+    content:0
   }
   return func
 }
@@ -356,7 +396,7 @@ fn (p Parser) find_lvar(name string) (bool, &Lvar, bool) {
   if name in p.global {
     return true, p.global[name].val, is_curbl
   }
-  return false, &Lvar{}, false
+  return false, &Lvar{typ:0}, false
 }
 
 fn (p Parser) find_struct(name string) (bool, &Struct, bool) {
@@ -397,9 +437,13 @@ fn (p mut Parser) top() {
   } else {
     p.consume('typedef')
   }
-  is_typ, typ, name := p.consume_type()
+  is_typ, typ, mut name := p.consume_type_allow_no_ident()
   if !is_typ {
     p.token_err('Expected type')
+  }
+  if name == '' {
+    p.expect(';')
+    return
   }
   if name in p.global {//todo
     gvar := p.global[name].val
@@ -424,13 +468,31 @@ fn (p mut Parser) top() {
     func.is_static = is_static
     p.code[name] = Funcwrap{func}
   } else {
-    p.expect(';')
+    for !p.consume(';') {
+      p.expect(',')
+      mut typ2 := &Type{}
+      typ2.kind << typ.kind.first()
+      typb, str := p.consume_type_body()
+      name = str
+      typ2.merge(typb)
+      if name == '' {
+        p.token_err('There must be name in the definition')
+      }
+      if name in p.global {//todo
+        p.token_err('`$name` is already declared')
+      }
+      mut gvar2 := p.new_gvar(name, typ2)
+      gvar2.is_static = is_static
+      gvar2.is_extern = is_extern
+      gvar2.is_type = is_typedef
+      p.global[name] = Lvarwrap{gvar2}
+    }
   }
 }
 
 fn (p mut Parser) fnargs(args &Funcarg) (&Node, []Lvarwrap) {
   mut lvars := []Lvarwrap
-  mut node := &Node{}
+  mut node := p.new_node_nothing()
   for arg in args.args {
     name := arg.val.name
     typ := arg.val.typ
@@ -439,7 +501,7 @@ fn (p mut Parser) fnargs(args &Funcarg) (&Node, []Lvarwrap) {
     }
     mut lvar := p.new_lvar(name, typ, 0)
     p.curfn.offset += typ.size()
-    p.curfn.offset = align(p.curfn.offset, typ.size())
+    p.curfn.offset = align(p.curfn.offset, typ.size_align())
     offset := p.curfn.offset
     lvar.offset = offset
     lvars << Lvarwrap{lvar}
@@ -461,7 +523,7 @@ fn (p mut Parser) function(name string, typ &Type) &Function {
 
   func.args = args
   func.num = num
-  mut content := p.new_node(.block, &Node{}, &Node{})
+  mut content := p.new_node(.block, p.new_node_nothing(), p.new_node_nothing())
   p.curbl << Nodewrap{content}
   for lvar in lvars {
     content.locals << voidptr(lvar.val)
@@ -480,7 +542,7 @@ fn (p mut Parser) declare(typ &Type, name string, is_typedef bool) int {
   }
   if !is_typedef {
     p.curfn.offset += typ.size()
-    p.curfn.offset = align(p.curfn.offset, typ.size())
+    p.curfn.offset = align(p.curfn.offset, typ.size_align())
   }
   offset := p.curfn.offset
   mut nlvar := p.new_lvar(name, typ, offset)
@@ -491,13 +553,13 @@ fn (p mut Parser) declare(typ &Type, name string, is_typedef bool) int {
 }
 
 fn (p mut Parser) stmt() &Node {
-  mut node := &Node{}
+  mut node := p.new_node_nothing()
   if p.consume('return') {
     if !p.consume(';') {
       node = p.expr()
       p.expect(';')
     }
-    node = p.new_node(.ret, node, &Node{})
+    node = p.new_node(.ret, node, p.new_node_nothing())
   } else if p.consume('{') {
     node = p.block()
   } else if p.consume('if') {
@@ -510,14 +572,14 @@ fn (p mut Parser) stmt() &Node {
       node = p.new_node_with_cond(.ifelse, expr, stmt_true, stmt_false, p.ifnum)
       node.name = 'stmt'
     } else {
-      node = p.new_node_with_cond(.ifn, expr, stmt_true, &Node{}, p.ifnum)
+      node = p.new_node_with_cond(.ifn, expr, stmt_true, p.new_node_nothing(), p.ifnum)
     }
     p.ifnum++
   } else if p.consume('for') {
     p.expect('(')
-    mut outer_block := p.new_node(.block, &Node{}, &Node{})
+    mut outer_block := p.new_node(.block, p.new_node_nothing(), p.new_node_nothing())
     p.curbl << Nodewrap{outer_block}
-    mut node_tmp := &Node{}
+    mut node_tmp := p.new_node_nothing()
     is_decl, fortyp, name := p.consume_type()
     offset := if is_decl {
       p.declare(fortyp, name, false)
@@ -559,7 +621,7 @@ fn (p mut Parser) stmt() &Node {
     expr := p.expr()
     p.expect(')')
     stmt := p.stmt()
-    node = p.new_node_with_cond(.while, expr, stmt, &Node{}, p.ifnum)
+    node = p.new_node_with_cond(.while, expr, stmt, p.new_node_nothing(), p.ifnum)
     p.ifnum++
   } else if p.consume('do') {
     stmt := p.stmt()
@@ -568,16 +630,16 @@ fn (p mut Parser) stmt() &Node {
     expr := p.expr()
     p.expect(')')
     p.expect(';')
-    node = p.new_node_with_cond(.do, expr, stmt, &Node{}, p.ifnum)
+    node = p.new_node_with_cond(.do, expr, stmt, p.new_node_nothing(), p.ifnum)
     p.ifnum++
   } else if p.consume('switch') {
     p.expect('(')
     expr := p.expr()
     p.expect(')')
-    node = p.new_node_with_cond(.swich, expr, &Node{}, &Node{}, p.ifnum)
+    node = p.new_node_with_cond(.swich, expr, p.new_node_nothing(), p.new_node_nothing(), p.ifnum)
     p.ifnum++
     p.cursw << Nodewrap{node}
-    mut block := p.new_node(.block, &Node{}, &Node{})
+    mut block := p.new_node(.block, p.new_node_nothing(), p.new_node_nothing())
     block.secondkind = .swich
     p.curbl << Nodewrap{block}
     p.expect('{')
@@ -586,13 +648,13 @@ fn (p mut Parser) stmt() &Node {
     p.cursw.delete(p.cursw.len-1)
     node.left = block
   } else if p.consume('break') {
-    node = p.new_node(.brk, &Node{}, &Node{})
+    node = p.new_node(.brk, p.new_node_nothing(), p.new_node_nothing())
     p.expect(';')
   } else if p.consume('continue') {
-    node = p.new_node(.cont, &Node{}, &Node{})
+    node = p.new_node(.cont, p.new_node_nothing(), p.new_node_nothing())
     p.expect(';')
   } else if p.consume('goto') {
-    node = p.new_node(.gozu, &Node{}, &Node{})
+    node = p.new_node(.gozu, p.new_node_nothing(), p.new_node_nothing())
     node.name = p.expect_ident()
     p.expect(';')
   } else if p.consume('case') {
@@ -606,7 +668,7 @@ fn (p mut Parser) stmt() &Node {
     id := swblock.offset
     swblock.offset++
     swblock.code << voidptr(value)
-    node = p.new_node(.label, p.stmt(), &Node{})
+    node = p.new_node(.label, p.stmt(), p.new_node_nothing())
     node.name = 'case.$num\.$id'
   } else if p.consume('default') {
     if (p.curbl.last()).val.secondkind != .swich {
@@ -616,10 +678,10 @@ fn (p mut Parser) stmt() &Node {
     p.expect(':')
     num := swblock.num
     swblock.name = 'hasdefault'
-    node = p.new_node(.label, p.stmt(), &Node{})
+    node = p.new_node(.label, p.stmt(), p.new_node_nothing())
     node.name = 'default.$num'
   } else if p.consume(';') {
-    node = p.new_node(.nothing, &Node{}, &Node{})
+    node = p.new_node(.nothing, p.new_node_nothing(), p.new_node_nothing())
   } else if p.look_for_label() {
     name := p.expect_ident()
     if name in p.curfn.labels {
@@ -627,7 +689,7 @@ fn (p mut Parser) stmt() &Node {
     }
     p.curfn.labels << name
     p.expect(':')
-    node = p.new_node(.label, p.stmt(), &Node{})
+    node = p.new_node(.label, p.stmt(), p.new_node_nothing())
     node.name = name
   } else {
     node = p.expr()
@@ -638,7 +700,7 @@ fn (p mut Parser) stmt() &Node {
 }
 
 fn (p mut Parser) block() &Node {
-  mut node := p.new_node(.block, &Node{}, &Node{})
+  mut node := p.new_node(.block, p.new_node_nothing(), p.new_node_nothing())
   p.curbl << Nodewrap{node}
 
   p.block_without_curbl(mut node)
@@ -967,7 +1029,7 @@ fn (p mut Parser) cast() &Node {
     mut node := p.cast()
     node.add_type()
     node.typ = node.typ.cast_ary()
-    node = p.new_node(.cast, node, &Node{})
+    node = p.new_node(.cast, node, p.new_node_nothing())
     node.typ = typ
     return node
   }
@@ -985,23 +1047,23 @@ fn (p mut Parser) unary() &Node {
       p.expect(')')
       mut node := p.new_node_num(0)
       node.typ = typ
-      return p.new_node(.sizof, node, &Node{})
+      return p.new_node(.sizof, node, p.new_node_nothing())
     }
-    return p.new_node(.sizof, p.unary(), &Node{})
+    return p.new_node(.sizof, p.unary(), p.new_node_nothing())
   } else if p.consume('*') {
-    return p.new_node(.deref, p.unary(), &Node{})
+    return p.new_node(.deref, p.unary(), p.new_node_nothing())
   } else if p.consume('&') {
-    return p.new_node(.addr, p.unary(), &Node{})
+    return p.new_node(.addr, p.unary(), p.new_node_nothing())
   } else if p.consume('++') {
-    return p.new_node(.incf, p.unary(), &Node{})
+    return p.new_node(.incf, p.unary(), p.new_node_nothing())
   } else if p.consume('--') {
-    return p.new_node(.decf, p.unary(), &Node{})
+    return p.new_node(.decf, p.unary(), p.new_node_nothing())
   } else if p.consume('+') {
     return p.unary()
   } else if p.consume('-') {
     return p.new_node(.sub, p.new_node_num(0), p.unary())
   } else if p.consume('~') {
-    return p.new_node(.bitnot, p.unary(), &Node{})
+    return p.new_node(.bitnot, p.unary(), p.new_node_nothing())
   } else if p.consume('!') {
     return p.new_node(.eq, p.unary(), p.new_node_num(0))
   }
@@ -1013,9 +1075,9 @@ fn (p mut Parser) postfix() &Node {
 
   for {
     if p.consume('++') {
-      node = p.new_node(.incb, node, &Node{})
+      node = p.new_node(.incb, node, p.new_node_nothing())
     } else if p.consume('--') {
-      node = p.new_node(.decb, node, &Node{})
+      node = p.new_node(.decb, node, p.new_node_nothing())
     } else if p.consume('[') {
       mut right := p.expr()
       node.add_type()
@@ -1042,8 +1104,26 @@ fn (p mut Parser) postfix() &Node {
       }
       node = p.new_node(.add, node, right)
       node.typ = typ
-      node = p.new_node(.deref, node, &Node{})
+      node = p.new_node(.deref, node, p.new_node_nothing())
       p.expect(']')
+    } else if p.consume('(') {
+      name := if node.kind == .gvar && node.typ.kind.last() == .func {
+        node.name
+      } else {
+        ''
+      }
+      func := node
+      if p.consume(')') {
+        node = p.new_node_call(.call, 0, name, p.new_node_nothing())
+        node.right = func
+      } else {
+        args, num := p.args()
+        p.expect(')')
+        node = p.new_node_call(.call, num, name, args)
+        node.right = func
+      }
+      node.add_type()
+      node.typ = func.typ.reduce()
     } else {
       return node
     }
@@ -1057,7 +1137,7 @@ fn (p mut Parser) args() (&Node, int) {
     args, num := p.args()
     return p.new_node(.args, expr, args), num+1
   }
-  return p.new_node(.args, expr, &Node{}), 1
+  return p.new_node(.args, expr, p.new_node_nothing()), 1
 }
 
 fn (p mut Parser) primary() &Node {
@@ -1076,22 +1156,6 @@ fn (p mut Parser) primary() &Node {
       return node
     }
     return p.new_node_num(p.expect_number())
-  }
-
-  if p.consume('(') {
-    mut node := &Node{}
-    if p.consume(')') {
-      node = p.new_node_call(.call, 0, name, &Node{})
-    } else {
-      args, num := p.args()
-      p.expect(')')
-      node = p.new_node_call(.call, num, name, args)
-    }
-    node.add_type()
-    if name in p.code {
-      node.typ = p.code[name].val.typ.clone()
-    }
-    return node
   }
 
   is_lvar, lvar, _ := p.find_lvar(name)
