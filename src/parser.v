@@ -1124,6 +1124,36 @@ fn (p mut Parser) postfix() &Node {
       }
       node.add_type()
       node.typ = func.typ.reduce()
+    } else if p.consume('.') {
+      node.add_type()
+      if node.typ.kind.last() != .strc {
+        p.token_err('Expected struct type')
+      }
+      strc := (node.typ.strc.last()).val
+      name := p.expect_ident()
+      if !name in strc.content {
+        p.token_err('There is no member named `$name`')
+      }
+      member := strc.content[name].val
+      node = p.new_node(.add, p.new_node(.addr, node, p.new_node_nothing()), p.new_node_num(member.offset))
+      node.typ = member.typ.clone()
+      node.typ.kind << Typekind.ptr
+      node = p.new_node(.deref, node, p.new_node_nothing())
+    } else if p.consume('->') {
+      node.add_type()
+      if !node.typ.is_ptr() || (node.typ.reduce()).kind.last() != .strc {
+        p.token_err('Expected pointer/array of struct type')
+      }
+      strc := (node.typ.strc.last()).val
+      name := p.expect_ident()
+      if !name in strc.content {
+        p.token_err('There is no member named `$name`')
+      }
+      member := strc.content[name].val
+      node = p.new_node(.add, node, p.new_node_num(member.offset))
+      node.typ = member.typ.clone()
+      node.typ.kind << Typekind.ptr
+      node = p.new_node(.deref, node, p.new_node_nothing())
     } else {
       return node
     }
