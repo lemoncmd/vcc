@@ -2,6 +2,7 @@ module main
 
 struct Parser {
   tokens []Tok
+  progstr string
 mut:
   pos int
   code map[string]Funcwrap
@@ -210,7 +211,7 @@ fn (p mut Parser) consume_any(ops []string) (bool, string) {
 fn (p mut Parser) expect(op string) {
   token := p.tokens[p.pos]
   if token.kind != .reserved || token.str != op {
-    unexp_err(token, 'Expected $op but got ${token.str}')
+    p.token_err('Expected $op but got ${token.str}')
   }
   p.pos++
   return
@@ -219,7 +220,7 @@ fn (p mut Parser) expect(op string) {
 fn (p mut Parser) expect_number() int {
   token := p.tokens[p.pos]
   if token.kind != .num {
-    unexp_err(token, 'Expected number but got ${token.str}')
+    p.token_err('Expected number but got ${token.str}')
   }
   p.pos++
   return token.str.int()
@@ -228,7 +229,7 @@ fn (p mut Parser) expect_number() int {
 fn (p mut Parser) expect_ident() string {
   token := p.tokens[p.pos]
   if token.kind != .ident {
-    unexp_err(token, 'Expected ident but got ${token.str}')
+    p.token_err('Expected ident but got ${token.str}')
   }
   p.pos++
   return token.str
@@ -1112,6 +1113,20 @@ fn (p mut Parser) postfix() &Node {
       } else {
         ''
       }
+      node.add_type()
+      if node.typ.kind.last() != .func {
+        if !node.typ.is_ptr() {
+          p.token_err('Cannot call non-functional type')
+        } else {
+          mut typ := node.typ
+          for typ.is_ptr() {
+            typ = typ.reduce()
+          }
+          if typ.kind.last() != .func {
+            p.token_err('Cannot call non-functional type')
+          }
+        }
+      }
       func := node
       if p.consume(')') {
         node = p.new_node_call(.call, 0, name, p.new_node_nothing())
@@ -1123,7 +1138,11 @@ fn (p mut Parser) postfix() &Node {
         node.right = func
       }
       node.add_type()
-      node.typ = func.typ.reduce()
+      node.typ = func.typ
+      for node.typ.is_ptr() {
+        node.typ = node.typ.reduce()
+      }
+      node.typ = node.typ.reduce()
     } else if p.consume('.') {
       node.add_type()
       if node.typ.kind.last() != .strc {

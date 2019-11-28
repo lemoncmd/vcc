@@ -594,12 +594,12 @@ fn (p mut Parser) gen(node &Node) {
       println('  push 0')
       println('.L.call.$ifnum:')
       p.gen_arg(args, node.num)
-      for i in Regs.left(node.num) {
-        println('  pop $i')
-      }
       if node.name == '' {
         p.gen(node.right)
         println('  pop rdx')
+      }
+      for i in Regs.left(node.num) {
+        println('  pop $i')
       }
       println('  mov rax, 0')
       println('  call $name')

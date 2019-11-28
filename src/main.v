@@ -13,7 +13,9 @@ fn unexp_err(token Tok, s string) {
 }
 
 fn (p Parser) token_err(s string) {
-  unexp_err(p.tokens[p.pos], s)
+  program := p.progstr.split_into_lines()[p.tokens[p.pos].line-1]
+  here := [' '].repeat(p.tokens[p.pos].pos).join('')
+  unexp_err(p.tokens[p.pos], '$s\n$program\n$here^here')
 }
 
 fn main(){
@@ -35,7 +37,8 @@ fn main(){
   }
 
   mut parser := Parser{
-    tokens:tokenize(program),
+    tokens:tokenize(program)
+    progstr:program
     pos:0
     statics:1972
     curfn:0
