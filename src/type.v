@@ -33,12 +33,10 @@ enum Typekind {
 
 fn (p mut Parser) consume_type() (bool, &Type, string) {
   is_typ, mut typ := p.consume_type_base()
-  mut name := ''
   if !is_typ {
-    return false, typ, name
+    return false, typ, ''
   }
-  typb, str := p.consume_type_body()
-  name = str
+  typb, name := p.consume_type_body()
   typ.merge(typb)
   if name == '' {
     p.token_err('There must be name in the definition')
@@ -49,21 +47,18 @@ fn (p mut Parser) consume_type() (bool, &Type, string) {
 
 fn (p mut Parser) consume_type_allow_no_ident() (bool, &Type, string) {
   is_typ, mut typ := p.consume_type_base()
-  mut name := ''
   if !is_typ {
-    return false, typ, name
+    return false, typ, ''
   }
-  typb, str := p.consume_type_body()
-  name = str
+  typb, name := p.consume_type_body()
   typ.merge(typb)
   p.check_func_typ(typ)
   return true, typ, name
 }
 
 fn (p mut Parser) consume_type_body() (&Type, string) {
-  mut typ := &Type{}
+  mut typ := p.consume_type_front()
   mut name := ''
-  typ.merge(p.consume_type_front())
   if !p.look_for_bracket() && !p.look_for_bracket_with_type() && p.consume('(') {
     typb, str := p.consume_type_body()
     p.consume(')')
@@ -88,8 +83,7 @@ fn (p mut Parser) consume_type_nostring() (bool, &Type) {
 }
 
 fn (p mut Parser) consume_type_body_nostring() &Type {
-  mut typ := &Type{}
-  typ.merge(p.consume_type_front())
+  mut typ := p.consume_type_front()
   if !p.look_for_bracket() && !p.look_for_bracket_with_type() && p.consume('(') {
     typb := p.consume_type_body_nostring()
     p.consume(')')
@@ -202,6 +196,8 @@ fn (p mut Parser) consume_type_back() &Type {
   if p.consume('[') {
     number := if p.consume(']') {
       -1
+    } else if p.consume('*') {
+      0
     } else {
       p.expect_number()
     }
@@ -242,7 +238,7 @@ fn (p mut Parser) consume_type_back() &Type {
         argtyp.kind << Typekind.ptr
       }
       if name in paras {
-        p.token_err('parameter `$name` is already declared')
+        p.token_err('Parameter `$name` is already declared')
       }
       if name != '' {
         paras << name
@@ -291,8 +287,7 @@ fn (p Parser) look_for_bracket_with_type() bool {
 }
 
 fn (p mut Parser) consume_type_struct() &Type {
-  mut typ := &Type{}
-  typ.kind << Typekind.strc
+  mut typ := &Type{kind:[Typekind.strc]}
   is_ident, name := p.consume_ident()
   mut is_protoed := false
   if is_ident {
@@ -493,12 +488,12 @@ fn (typ Type) reduce() &Type {
 }
 
 fn (typ Type) clone() &Type {
-  mut typ2 := &Type{}
-  typ2.kind = typ.kind.clone()
-  typ2.suffix = typ.suffix.clone()
-  typ2.strc = typ.strc.clone()
-  typ2.func = typ.func.clone()
-  return typ2
+  return &Type{
+    kind:typ.kind.clone()
+    suffix:typ.suffix.clone()
+    strc:typ.strc.clone()
+    func:typ.func.clone()
+  }
 }
 
 fn (typ Type) cast_ary() &Type {

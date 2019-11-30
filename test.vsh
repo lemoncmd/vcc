@@ -1,8 +1,8 @@
 fn try(expected int, input string) {
-  write_file('tmp.c', input)
+  write_file('tmp.c', 'int foo();int bar(int,int);int hw();void alloc4(int**,int,int,int,int);'+input)
   system('./vcc tmp.c > tmp.s')
   system('gcc -o tmp tmp.s tmp2.o')
-  actual := system('./tmp')
+  actual := system('./tmp')/256
   if actual == expected {
     println('$input => $actual')
   } else {

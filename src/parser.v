@@ -117,7 +117,7 @@ mut:
   secondkind Nodekind
   code []voidptr
   typ &Type
-  locals []voidptr // []&Lvar
+  locals []Lvarwrap
   structs map[string]Strcwrap
 }
 
@@ -236,7 +236,7 @@ fn (p mut Parser) expect_ident() string {
 }
 
 fn (p Parser) new_node(kind Nodekind, left, right &Node) &Node {
-  node := &Node{
+  return &Node{
     kind:kind
     left:left
     right:right
@@ -246,11 +246,10 @@ fn (p Parser) new_node(kind Nodekind, left, right &Node) &Node {
     cond:0
     first:0
   }
-  return node
 }
 
 fn (p Parser) new_node_with_cond(kind Nodekind, cond, left, right &Node, num int) &Node {
-  node := &Node{
+  return &Node{
     kind:kind
     cond:cond
     left:left
@@ -259,11 +258,10 @@ fn (p Parser) new_node_with_cond(kind Nodekind, cond, left, right &Node, num int
     first:0
     typ:0
   }
-  return node
 }
 
 fn (p Parser) new_node_with_all(kind Nodekind, first, cond, left, right &Node, num int) &Node {
-  node := &Node{
+  return &Node{
     kind:kind
     cond:cond
     first:first
@@ -272,11 +270,10 @@ fn (p Parser) new_node_with_all(kind Nodekind, first, cond, left, right &Node, n
     num:num
     typ:0
   }
-  return node
 }
 
 fn (p Parser) new_node_num(num int) &Node {
-  node := &Node{
+  return &Node{
     kind:.num
     num:num
     left:0
@@ -285,11 +282,10 @@ fn (p Parser) new_node_num(num int) &Node {
     cond:0
     first:0
   }
-  return node
 }
 
 fn (p Parser) new_node_string(str string, id int) &Node {
-  node := &Node{
+  return &Node{
     kind:.string
     offset:id
     name:str
@@ -299,11 +295,10 @@ fn (p Parser) new_node_string(str string, id int) &Node {
     cond:0
     first:0
   }
-  return node
 }
 
 fn (p Parser) new_node_lvar(offset int, typ &Type) &Node {
-  node := &Node{
+  return &Node{
     kind:.lvar
     offset:offset
     typ:typ
@@ -312,11 +307,10 @@ fn (p Parser) new_node_lvar(offset int, typ &Type) &Node {
     cond:0
     first:0
   }
-  return node
 }
 
 fn (p Parser) new_node_gvar(offset int, typ &Type, name string) &Node {
-  node := &Node{
+  return &Node{
     kind:.gvar
     offset:offset
     typ:typ
@@ -326,11 +320,10 @@ fn (p Parser) new_node_gvar(offset int, typ &Type, name string) &Node {
     cond:0
     first:0
   }
-  return node
 }
 
 fn (p Parser) new_node_call(kind Nodekind, num int, name string, args &Node) &Node {
-  node := &Node{
+  return &Node{
     kind:kind
     left:args
     right:0
@@ -340,11 +333,10 @@ fn (p Parser) new_node_call(kind Nodekind, num int, name string, args &Node) &No
     num:num
     name:name
   }
-  return node
 }
 
 fn (p Parser) new_node_nothing() &Node {
-  node := &Node{
+  return &Node{
     kind:.nothing
     left:0
     right:0
@@ -352,42 +344,38 @@ fn (p Parser) new_node_nothing() &Node {
     cond:0
     first:0
   }
-  return node
 }
 
 fn (p Parser) new_func(name string, typ &Type) &Function {
-  func := &Function{
+  return &Function{
     name: name
     typ: typ
     args:0
     content:0
   }
-  return func
 }
 
 fn (p Parser) new_lvar(name string, typ &Type, offset int) &Lvar {
-  lvar := &Lvar{
+  return &Lvar{
     name:name
     typ:typ
     offset:offset
   }
-  return lvar
 }
 
 fn (p Parser) new_gvar(name string, typ &Type) &Lvar {
-  lvar := &Lvar{
+  return &Lvar{
     name:name
     typ:typ
     is_global:true
   }
-  return lvar
 }
 
 fn (p Parser) find_lvar(name string) (bool, &Lvar, bool) {
   mut is_curbl := true
   for block in p.curbl.reverse() {
     for i in block.val.locals {
-      lvar := &Lvar(i)
+      lvar := i.val
       if lvar.name == name {
         return true, lvar, is_curbl
       }
@@ -516,6 +504,11 @@ fn (p mut Parser) fnargs(args &Funcarg) (&Node, []Lvarwrap) {
 }
 
 fn (p mut Parser) function(name string, typ &Type) &Function {
+/*  is_struct_return := typ.size() > 16
+  mut rettyp := typ.reduce()
+  if is_struct_return {
+    rettyp.kind << Typekind.ptr
+  }*/
   mut func := p.new_func(name, typ.reduce())
   p.curfn = func
   funcarg := typ.func.last()
@@ -526,9 +519,7 @@ fn (p mut Parser) function(name string, typ &Type) &Function {
   func.num = num
   mut content := p.new_node(.block, p.new_node_nothing(), p.new_node_nothing())
   p.curbl << Nodewrap{content}
-  for lvar in lvars {
-    content.locals << voidptr(lvar.val)
-  }
+  content.locals << lvars
   p.block_without_curbl(mut content)
   p.curbl.delete(p.curbl.len-1)
   func.content = content
@@ -539,7 +530,7 @@ fn (p mut Parser) function(name string, typ &Type) &Function {
 fn (p mut Parser) declare(typ &Type, name string, is_typedef bool) int {
   is_lvar, _, is_curbl := p.find_lvar(name)
   if is_lvar && is_curbl {
-    p.token_err('$name is already declared')
+    p.token_err('`$name` is already declared')
   }
   if !is_typedef {
     p.curfn.offset += typ.size()
@@ -549,7 +540,7 @@ fn (p mut Parser) declare(typ &Type, name string, is_typedef bool) int {
   mut nlvar := p.new_lvar(name, typ, offset)
   nlvar.is_type = is_typedef
   mut block := p.curbl.last()
-  block.val.locals << voidptr(nlvar)
+  block.val.locals << Lvarwrap{nlvar}
   return offset
 }
 
@@ -686,7 +677,7 @@ fn (p mut Parser) stmt() &Node {
   } else if p.look_for_label() {
     name := p.expect_ident()
     if name in p.curfn.labels {
-      p.token_err('label `$name` is already declared')
+      p.token_err('Label `$name` is already declared')
     }
     p.curfn.labels << name
     p.expect(':')
@@ -741,7 +732,7 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
           lvar.is_static = true
           p.global['$name\.$offset'] = Lvarwrap{lvar}
           mut block := p.curbl.last()
-          block.val.locals << voidptr(lvar)
+          block.val.locals << Lvarwrap{lvar}
         } else if typ.kind.last() == .func {
           is_lvar, _, is_curbl := p.find_lvar(name)
           if is_lvar && is_curbl {
@@ -749,8 +740,8 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
           }
           mut lvar := p.new_lvar(name, typ, 0)
           mut block := p.curbl.last()
-          block.val.locals << voidptr(lvar)
-        } else {
+          block.val.locals << Lvarwrap{lvar}
+          } else {
           offset := p.declare(typ, name, is_typedef)
           if !is_typedef && p.consume('=') {
             lvar := p.new_node_lvar(offset, typ)
@@ -1099,9 +1090,9 @@ fn (p mut Parser) postfix() &Node {
         node = p.new_node(.mul, node, num)
         node.typ = typ.clone()
       } else if node.typ.is_int() && right.typ.is_int() {
-        p.token_err('either expression in a[b] should be pointer')
+        p.token_err('Either expression in a[b] should be pointer')
       } else {
-        p.token_err('both body and suffix are pointers in a[b] expression')
+        p.token_err('Both body and suffix are pointers in a[b] expression')
       }
       node = p.new_node(.add, node, right)
       node.typ = typ

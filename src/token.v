@@ -60,6 +60,18 @@ fn tokenize(p string) []Tok {
     }
 
     if pos + 2 <= p.len && p[pos..pos+2] == '//' {
+      pos++
+      lpos++
+      for pos < p.len && p[pos-1] != `\\` && p[pos] != `\n` {
+        pos++
+        lpos++
+      }
+      continue
+    }
+
+    if p[pos] == `#` { //this is a hack for preprocessed gcc code
+      pos++
+      lpos++
       for pos < p.len && p[pos-1] != `\\` && p[pos] != `\n` {
         pos++
         lpos++
