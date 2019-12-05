@@ -108,6 +108,7 @@ fn (p mut Parser) consume_type_base() (bool, &Type) {
       for p.consume('const') {}
       return true, lvar.typ.clone()
     } else {
+      typ.kind << Typekind.int
       return false, typ
     }
   }
@@ -160,6 +161,10 @@ fn (p mut Parser) consume_type_base() (bool, &Type) {
         }
         for p.consume('const') {}
         p.consume('int')
+      }
+      else {
+        p.pos--
+        typ.kind << Typekind.int
       }
     }
     if is_unsigned {

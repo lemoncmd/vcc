@@ -544,6 +544,53 @@ fn (p mut Parser) declare(typ &Type, name string, is_typedef bool) int {
   return offset
 }
 
+fn (p mut Parser) initialize(typ &Type, offset int) {
+  if typ.kind.last() == .ary {
+  } else if typ.kind.last() == .strc {
+    members := (typ.strc.last()).val.content
+    mut ignored := (members.keys()).len == 0
+    mut keys := [if ignored {''} else {members.keys()[0]}]
+    mut first := true
+    for !p.consume('}') {
+      if first {
+        first = false
+      } else {
+        p.expect(',')
+      }
+      if p.consume('.') {
+        name := p.expect_ident()
+        p.expect('=')
+        if !name in members {
+          p.token_err('There is no member called `$name`')
+        }
+      }
+      member := members[keys[0]].val
+      if p.consume('{')/*member.typ.kind.last() in [.array, .strc]*/ {
+      } else {
+        node := p.assign()
+        if !ignored {
+          ignored=true//stab
+          keys<<''//stab
+        }
+      }
+    }
+  } else {
+    if p.consume('{') {
+      p.initialize(typ, offset)
+    } else {
+      node := p.assign()
+    }
+    for p.consume(',') {
+      if p.consume('{') {
+        p.initialize(typ, offset)
+      } else {
+        p.assign()
+      }
+    }
+    p.expect('}')
+  }
+}
+
 fn (p mut Parser) stmt() &Node {
   mut node := p.new_node_nothing()
   if p.consume('return') {
@@ -572,18 +619,35 @@ fn (p mut Parser) stmt() &Node {
     mut outer_block := p.new_node(.block, p.new_node_nothing(), p.new_node_nothing())
     p.curbl << Nodewrap{outer_block}
     mut node_tmp := p.new_node_nothing()
-    is_decl, fortyp, name := p.consume_type()
-    offset := if is_decl {
-      p.declare(fortyp, name, false)
-    } else {
-      0
+    if p.consume('typedef') || p.consume('static') {
+      p.token_err('Declaration of non-local variable in `for` loop')
     }
-    first := if is_decl && p.consume('=') {
-      node_tmp = p.new_node(.assign, p.new_node_lvar(offset, fortyp), p.assign())
-      node_tmp.add_type()
-      p.expect(';')
-      node_tmp
-    } else if p.consume(';') {
+    is_decl, fortyp := p.consume_type_base()
+    if is_decl {
+      mut first := true
+      for !p.consume(';') {
+        mut typ := fortyp.clone()
+        if first {
+          first = false
+        } else {
+          p.expect(',')
+        }
+        typb, name := p.consume_type_body()
+        typ.merge(typb)
+        if name == '' {
+          p.token_err('There must be name in the definition')
+        }
+        p.check_func_typ(typ)
+        offset := p.declare(typ, name, false)
+        if p.consume('='){
+          lvar := p.new_node_lvar(offset, typ)
+          mut assign := p.new_node(.assign, lvar, p.assign())
+          assign.add_type()
+          outer_block.code << voidptr(assign)
+        }
+      }
+    }
+    first := if is_decl || p.consume(';') {
       p.new_node_num(0)
     } else {
       node_tmp = p.expr()
@@ -605,8 +669,9 @@ fn (p mut Parser) stmt() &Node {
       node_tmp
     }
     stmt := p.stmt()
+    outer_block.code << voidptr(p.new_node_with_all(.forn, first, cond, stmt, right, p.ifnum))
     p.curbl.delete(p.curbl.len-1)
-    node = p.new_node_with_all(.forn, first, cond, stmt, right, p.ifnum)
+    node = outer_block
     p.ifnum++
   } else if p.consume('while') {
     p.expect('(')
@@ -721,6 +786,7 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
         }
         typb, name := p.consume_type_body()
         typ.merge(typb)
+        p.check_func_typ(typ)
         if is_static {
           is_lvar, _, is_curbl := p.find_lvar(name)
           if is_lvar && is_curbl {
