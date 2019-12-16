@@ -115,7 +115,7 @@ mut:
   offset int
   name string
   secondkind Nodekind
-  code []voidptr
+  code []Nodewrap
   typ &Type
   locals []Lvarwrap
   structs map[string]Strcwrap
@@ -211,7 +211,7 @@ fn (p mut Parser) consume_any(ops []string) (bool, string) {
 fn (p mut Parser) expect(op string) {
   token := p.tokens[p.pos]
   if token.kind != .reserved || token.str != op {
-    p.token_err('Expected $op but got ${token.str}')
+    p.token_err('Expected $op but got $token.str')
   }
   p.pos++
   return
@@ -220,7 +220,7 @@ fn (p mut Parser) expect(op string) {
 fn (p mut Parser) expect_number() int {
   token := p.tokens[p.pos]
   if token.kind != .num {
-    p.token_err('Expected number but got ${token.str}')
+    p.token_err('Expected number but got $token.str')
   }
   p.pos++
   return token.str.int()
@@ -229,7 +229,7 @@ fn (p mut Parser) expect_number() int {
 fn (p mut Parser) expect_ident() string {
   token := p.tokens[p.pos]
   if token.kind != .ident {
-    p.token_err('Expected ident but got ${token.str}')
+    p.token_err('Expected ident but got $token.str')
   }
   p.pos++
   return token.str
@@ -322,9 +322,9 @@ fn (p Parser) new_node_gvar(offset int, typ &Type, name string) &Node {
   }
 }
 
-fn (p Parser) new_node_call(kind Nodekind, num int, name string, args &Node) &Node {
+fn (p Parser) new_node_call(num int, name string, args &Node) &Node {
   return &Node{
-    kind:kind
+    kind:.call
     left:args
     right:0
     typ:0
@@ -549,7 +549,8 @@ fn (p mut Parser) initialize(typ &Type, offset int) {
   } else if typ.kind.last() == .strc {
     members := (typ.strc.last()).val.content
     mut ignored := (members.keys()).len == 0
-    mut keys := [if ignored {''} else {members.keys()[0]}]
+    mut keys := [['']]
+    keys.delete(0)
     mut first := true
     for !p.consume('}') {
       if first {
@@ -564,13 +565,13 @@ fn (p mut Parser) initialize(typ &Type, offset int) {
           p.token_err('There is no member called `$name`')
         }
       }
-      member := members[keys[0]].val
+      member := members[keys[0][0]].val
       if p.consume('{')/*member.typ.kind.last() in [.array, .strc]*/ {
       } else {
         node := p.assign()
         if !ignored {
           ignored=true//stab
-          keys<<''//stab
+          keys<<[['']]//stab
         }
       }
     }
@@ -643,7 +644,7 @@ fn (p mut Parser) stmt() &Node {
           lvar := p.new_node_lvar(offset, typ)
           mut assign := p.new_node(.assign, lvar, p.assign())
           assign.add_type()
-          outer_block.code << voidptr(assign)
+          outer_block.code << Nodewrap{assign}
         }
       }
     }
@@ -669,7 +670,7 @@ fn (p mut Parser) stmt() &Node {
       node_tmp
     }
     stmt := p.stmt()
-    outer_block.code << voidptr(p.new_node_with_all(.forn, first, cond, stmt, right, p.ifnum))
+    outer_block.code << Nodewrap{p.new_node_with_all(.forn, first, cond, stmt, right, p.ifnum)}
     p.curbl.delete(p.curbl.len-1)
     node = outer_block
     p.ifnum++
@@ -724,7 +725,7 @@ fn (p mut Parser) stmt() &Node {
     num := swblock.num
     id := swblock.offset
     swblock.offset++
-    swblock.code << voidptr(value)
+    swblock.code << Nodewrap{value}
     node = p.new_node(.label, p.stmt(), p.new_node_nothing())
     node.name = 'case.$num\.$id'
   } else if p.consume('default') {
@@ -813,7 +814,7 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
             lvar := p.new_node_lvar(offset, typ)
             mut assign := p.new_node(.assign, lvar, p.assign())
             assign.add_type()
-            node.code << voidptr(assign)
+            node.code << Nodewrap{assign}
           }
         }
       }
@@ -821,7 +822,7 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
       if is_static || is_typedef {
         p.token_err('Expected type')
       }
-      node.code << voidptr(p.stmt())
+      node.code << Nodewrap{p.stmt()}
     }
   }
 }
@@ -838,11 +839,62 @@ fn (p mut Parser) expr() &Node {
   return node
 }
 
+/*fn (p Parser) assign_struct(node &Node) &Node {
+  mut comma := p.new_node_num(0)
+  strc := (node.typ.strc.last()).val
+  for _, _member in strc.content {
+    member := _member.val
+    mut left := p.new_node(.add, node.left, p.new_node_num(member.offset))
+    left.typ = member.typ.clone()
+    left.typ.kind << Typekind.ptr
+    left = p.new_node(.deref, left, p.new_node_nothing())
+    mut right := p.new_node(.add, node.right, p.new_node_num(member.offset))
+    right.typ = member.typ.clone()
+    right.typ.kind << Typekind.ptr
+    right = p.new_node(.deref, right, p.new_node_nothing())
+    mut assign := p.new_node(.assign, left, right)
+    assign.add_type()
+    if assign.typ.kind.last() == .strc {
+      assign = p.assign_struct(assign)
+    } else if assign.typ.kind.last() == .ary {
+      assign = p.assign_array(assign)
+    }
+    comma = p.new_node(.comma, comma, assign)
+  }
+  comma = p.new_node(.comma, comma, node.left)
+  return comma
+}
+
+fn (p Parser) assign_array(node &Node) &Node {
+  mut comma := p.new_node_num(0)
+  size := node.typ.reduce().size()
+  for i in 0..node.typ.suffix.last() {
+    mut left := p.new_node(.add, node.left.left, p.new_node_num(i*size))
+    left.typ = node.left.typ.cast_ary()
+  }
+  comma = p.new_node(.comma, comma, node.left)
+  return comma
+}*/
+
 fn (p mut Parser) assign() &Node {
   mut node := p.ternary()
 
   if p.consume('=') {
     node = p.new_node(.assign, node, p.assign())
+    node.add_type()
+    if node.typ.kind.last() == .strc {
+      if node.right.typ.kind.last() != .strc {
+        p.token_err('Incompatible type when assigning to struct')
+      } else if (node.typ.strc.last()).val != (node.right.typ.strc.last()).val {
+        p.token_err('Incompatible struct when assigning')
+      }
+//      node = p.assign_struct(node)
+        typ := node.typ.clone()
+        node = p.new_node(.args, node.left, p.new_node(.args, node.right, p.new_node(.args, p.new_node_num(node.typ.size()), p.new_node_nothing())))
+        node.add_type()
+        node = p.new_node_call(3, 'memcpy', node)
+        node.typ = typ
+    }
   } else {
     is_assign, op := p.consume_any(['+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<=', '>>='])
     if is_assign {
@@ -1081,7 +1133,7 @@ fn (p mut Parser) cast() &Node {
     p.expect('(')
     _, typ := p.consume_type_nostring()
     if typ.kind.last() in [.ary, .func, .strc] {
-      p.token_err('Cannot cast to `${typ.str()}`')
+      p.token_err('Cannot cast to `${*typ}`')
     }
     p.expect(')')
     mut node := p.cast()
@@ -1186,12 +1238,12 @@ fn (p mut Parser) postfix() &Node {
       }
       func := node
       if p.consume(')') {
-        node = p.new_node_call(.call, 0, name, p.new_node_nothing())
+        node = p.new_node_call(0, name, p.new_node_nothing())
         node.right = func
       } else {
         args, num := p.args()
         p.expect(')')
-        node = p.new_node_call(.call, num, name, args)
+        node = p.new_node_call(num, name, args)
         node.right = func
       }
       node.add_type()
@@ -1211,7 +1263,7 @@ fn (p mut Parser) postfix() &Node {
         p.token_err('There is no member named `$name`')
       }
       member := strc.content[name].val
-      node = p.new_node(.add, p.new_node(.addr, node, p.new_node_nothing()), p.new_node_num(member.offset))
+      node = p.new_node(.add, node, p.new_node_num(member.offset))
       node.typ = member.typ.clone()
       node.typ.kind << Typekind.ptr
       node = p.new_node(.deref, node, p.new_node_nothing())

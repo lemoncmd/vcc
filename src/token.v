@@ -62,7 +62,7 @@ fn tokenize(p string) []Tok {
     if pos + 2 <= p.len && p[pos..pos+2] == '//' {
       pos++
       lpos++
-      for pos < p.len && p[pos-1] != `\\` && p[pos] != `\n` {
+      for pos < p.len && !(p[pos-1] != `\\` && p[pos] == `\n`) {
         pos++
         lpos++
       }
@@ -72,7 +72,7 @@ fn tokenize(p string) []Tok {
     if p[pos] == `#` { //this is a hack for preprocessed gcc code
       pos++
       lpos++
-      for pos < p.len && p[pos-1] != `\\` && p[pos] != `\n` {
+      for pos < p.len && !(p[pos-1] != `\\` && p[pos] == `\n`) {
         pos++
         lpos++
       }
@@ -219,6 +219,7 @@ fn tokenize(p string) []Tok {
             if num > 255 {parse_err('$line:$lpos: Octal out of range')}
             if num > 127 {num -= 256}
           }
+          else {}
         }
         pos++
         lpos++

@@ -59,7 +59,7 @@ fn (p mut Parser) gen_main() {
       if reg == 'none' {
         parse_err('Invalid type in arg of function $name')
       }
-      println('  mov [rbp-${fnargs.left.offset}], $reg')
+      println('  mov [rbp-$fnargs.left.offset], $reg')
       fnargs = fnargs.right
     }
     for i in 6..func.num {
@@ -75,7 +75,7 @@ fn (p mut Parser) gen_main() {
       }
       basenum := 8 * (i - 4)
       println('  mov rax, [rbp+$basenum]')
-      println('  mov [rbp-${fnargs.left.offset}], $reg')
+      println('  mov [rbp-$fnargs.left.offset], $reg')
       fnargs = fnargs.right
     }
 
@@ -98,7 +98,7 @@ fn (p mut Parser) gen_lval(node &Node) {
     return
   }
 
-  println('  lea rax, [rbp-${node.offset}]')
+  println('  lea rax, [rbp-$node.offset]')
   println('  push rax')
 }
 
@@ -112,13 +112,13 @@ fn (p mut Parser) gen_gval(node &Node) {
     return
   }
 
-  println('  push offset ${node.name}')
+  println('  push offset $node.name')
 }
 
 fn (p Parser) gen_inc(kind Nodekind, typ &Type){
   println('  pop rax')
   if typ.kind.last() in [.ary, .func, .strc] {
-    parse_err('you cannot inc/decrement type `${typ.str()}`')
+    parse_err('you cannot inc/decrement type `${*typ}`')
   }
   cmd := if kind in [.incb, .incf] {
     'add'
@@ -251,6 +251,7 @@ fn (p Parser) gen_calc(kind Nodekind) {
         .ne {println('  setne al')}
         .gt {println('  setg al')}
         .ge {println('  setge al')}
+        else {parse_err('What?')}
       }
       println('  movzb rax, al')
     }
@@ -289,6 +290,7 @@ fn (p Parser) gen_calc_unsigned(kind Nodekind, size int) {
         .ne {println('  setne al')}
         .gt {println('  seta al')}
         .ge {println('  setae al')}
+        else {parse_err('What?')}
       }
       println('  movzb rax, al')
     }
@@ -320,12 +322,14 @@ fn (p Parser) gen_cast(size int, is_unsigned bool, is_bool bool) {
       1 {println('  movzx rax, al')}
       2 {println('  movzx rax, ax')}
       4 {println('  lea rax, [eax]')}
+      else {parse_err('Unexpected size')}
     }
   } else {
     match size {
       1 {println('  movsx rax, al')}
       2 {println('  movsx rax, ax')}
       4 {println('  movsxd rax, eax')}
+      else {parse_err('Unexpected size')}
     }
   }
   println('  push rax')
@@ -340,8 +344,7 @@ fn (p mut Parser) gen(node &Node) {
         p.gen_cast(typ.size(), typ.is_unsigned(), typ.kind.last() == .bool)
         println('  pop rax')
       }
-      println('  jmp .L.return.${p.curfn.name}')
-      return
+      println('  jmp .L.return.$p.curfn.name')
     }
     .addr {
       if node.left.kind == .lvar {
@@ -349,14 +352,12 @@ fn (p mut Parser) gen(node &Node) {
       } else {
         p.gen_gval(node.left)
       }
-      return
     }
     .deref {
       p.gen(node.left)
-      if !node.typ.kind.last() in [.ary, .func] {
+      if !node.typ.kind.last() in [.ary, .func, .strc] {
         p.gen_load(node.typ)
       }
-      return
     }
     .incb, .decb, .incf, .decf {
       if node.left.kind == .lvar {
@@ -365,123 +366,113 @@ fn (p mut Parser) gen(node &Node) {
         p.gen_gval(node.left)
       }
       p.gen_inc(node.kind, node.left.typ)
-      return
     }
     .bitnot {
       p.gen(node.left)
       println('  pop rax')
       println('  not rax')
       println('  push rax')
-      return
     }
     .comma {
       p.gen(node.left)
       println('  pop rax')
       p.gen(node.right)
-      return
     }
     .block {
       for i in node.code {
-        code := &Node(i)
+        code := i.val
         p.gen(code)
       }
-      return
     }
     .ifn {
       p.gen(node.cond)
       println('  pop rax')
       println('  cmp rax, 0')
-      println('  je .L.end.${node.num}')
+      println('  je .L.end.$node.num')
       p.gen(node.left)
-      println('.L.end.${node.num}:')
-      return
+      println('.L.end.$node.num:')
     }
     .ifelse {
       p.gen(node.cond)
       println('  pop rax')
       println('  cmp rax, 0')
-      println('  je .L.else.${node.num}')
+      println('  je .L.else.$node.num')
       p.gen(node.left)
-      println('  jmp .L.end.${node.num}')
-      println('.L.else.${node.num}:')
+      println('  jmp .L.end.$node.num')
+      println('.L.else.$node.num:')
       p.gen(node.right)
-      println('.L.end.${node.num}:')
-      return
+      println('.L.end.$node.num:')
     }
     .forn {
       p.gen(node.first)
-      println('.L.begin.${node.num}:')
+      println('.L.begin.$node.num:')
       p.gen(node.cond)
       println('  pop rax')
       println('  cmp rax, 0')
-      println('  je .L.end.${node.num}')
+      println('  je .L.end.$node.num')
       p.genifnum << node.num
       p.gencontnum << node.num
       p.gen(node.left)
       p.genifnum.delete(p.genifnum.len-1)
       p.gencontnum.delete(p.gencontnum.len-1)
-      println('.L.cont.${node.num}:')
+      println('.L.cont.$node.num:')
       p.gen(node.right)
-      println('  jmp .L.begin.${node.num}')
-      println('.L.end.${node.num}:')
-      return
+      println('  jmp .L.begin.$node.num')
+      println('.L.end.$node.num:')
     }
     .while {
-      println('.L.begin.${node.num}:')
+      println('.L.begin.$node.num:')
       p.gen(node.cond)
       println('  pop rax')
       println('  cmp rax, 0')
-      println('  je .L.end.${node.num}')
+      println('  je .L.end.$node.num')
       p.genifnum << node.num
       p.gencontnum << node.num
       p.gen(node.left)
       p.genifnum.delete(p.genifnum.len-1)
       p.gencontnum.delete(p.gencontnum.len-1)
-      println('.L.cont.${node.num}:')
-      println('  jmp .L.begin.${node.num}')
-      println('.L.end.${node.num}:')
-      return
+      println('.L.cont.$node.num:')
+      println('  jmp .L.begin.$node.num')
+      println('.L.end.$node.num:')
     }
     .do {
-      println('.L.begin.${node.num}:')
+      println('.L.begin.$node.num:')
       p.genifnum << node.num
       p.gencontnum << node.num
       p.gen(node.left)
       p.genifnum.delete(p.genifnum.len-1)
       p.gencontnum.delete(p.gencontnum.len-1)
-      println('.L.cont.${node.num}:')
+      println('.L.cont.$node.num:')
       p.gen(node.cond)
       println('  pop rax')
       println('  cmp rax, 0')
-      println('  je .L.end.${node.num}')
-      println('  jmp .L.begin.${node.num}')
-      println('.L.end.${node.num}:')
-      return
+      println('  je .L.end.$node.num')
+      println('  jmp .L.begin.$node.num')
+      println('.L.end.$node.num:')
     }
     .swich {
-      println('.L.begin.${node.num}:')
+      println('.L.begin.$node.num:')
       mut i := 0
       p.gen(node.cond)
       for _cons in node.code {
-        cons := &Node(_cons)
+        cons := _cons.val
         p.gen(cons)
         println('  pop rdi')
         println('  pop rax')
         println('  cmp rax, rdi')
-        println('  je .L.label.case.${node.num}.$i')
+        println('  je .L.label.case.$node.num\.$i')
         println('  push rax')
         i++
       }
       if node.name == 'hasdefault' {
-        println('  jmp .L.label.default.${node.num}')
+        println('  jmp .L.label.default.$node.num')
       } else {
-        println('  jmp .L.end.${node.num}')
+        println('  jmp .L.end.$node.num')
       }
       p.genifnum << node.num
       p.gen(node.left)
       p.genifnum.delete(p.genifnum.len-1)
-      println('.L.end.${node.num}:')
-      return
+      println('.L.end.$node.num:')
     }
     .brk {
       if p.genifnum.len == 0 {
@@ -489,7 +480,6 @@ fn (p mut Parser) gen(node &Node) {
       }
       ifnum := p.genifnum.last()
       println('  jmp .L.end.$ifnum')
-      return
     }
     .cont {
       if p.gencontnum.len == 0 {
@@ -497,47 +487,46 @@ fn (p mut Parser) gen(node &Node) {
       }
       ifnum := p.gencontnum.last()
       println('  jmp .L.cont.$ifnum')
-      return
     }
     .label {
-      println('.L.label.${node.name}:')
+      println('.L.label.$node.name:')
       p.gen(node.left)
-      return
     }
     .gozu {
       if !node.name in p.curfn.labels {
-        parse_err('${node.name} used in goto but not declared')
+        parse_err('$node.name used in goto but not declared')
       }
-      println('  jmp .L.label.${node.name}')
-      return
+      println('  jmp .L.label.$node.name')
     }
     .num {
-      println('  push ${node.num}')
-      return
+      println('  push $node.num')
     }
     .string {
-      println('  push offset .L.C.${node.offset}')
-      return
+      println('  push offset .L.C.$node.offset')
     }
     .lvar {
       p.gen_lval(node)
-      if node.typ.kind.last() != .ary {
+      if !node.typ.kind.last() in [.ary, .func, .strc] {
         p.gen_load(node.typ)
       }
-      return
     }
     .gvar {
       p.gen_gval(node)
-      if !node.typ.kind.last() in [.ary, .func] {
+      if !node.typ.kind.last() in [.ary, .func, .strc] {
         p.gen_load(node.typ)
       }
-      return
     }
     .assign {
       if node.left.typ.kind.last() == .ary {
         parse_err('Assignment Error: array body is not assignable')
       } else if node.left.typ.kind.last() == .func {
         parse_err('Assignment Error: function is not assignable')
+      } else if node.typ.kind.last() == .strc {
+/*        for i in node.code {
+          code := i.val
+          p.gen(code)
+        }*/
+        return
       }
       if node.left.kind == .lvar {
         p.gen_lval(node.left)
@@ -546,7 +535,6 @@ fn (p mut Parser) gen(node &Node) {
       }
       p.gen(node.right)
       p.gen_store(node.typ)
-      return
     }
     .calcassign {
       if node.left.typ.kind.last() == .ary {
@@ -572,7 +560,6 @@ fn (p mut Parser) gen(node &Node) {
 
       println('  push rax')
       p.gen_store(node.typ)
-      return
     }
     .call {
       mut args := node.left
@@ -598,7 +585,7 @@ fn (p mut Parser) gen(node &Node) {
         p.gen(node.right)
         println('  pop rdx')
       }
-      for i in Regs.left(node.num) {
+      for i in Regs[..node.num] {
         println('  pop $i')
       }
       println('  mov rax, 0')
@@ -616,35 +603,32 @@ fn (p mut Parser) gen(node &Node) {
         println('  movzb rax, al')
       }
       println('  push rax')
-      return
     }
     .sizof {
       size := node.left.typ.size_allow_void()
       println('  push $size')
-      return
     }
     .cast {
       p.gen(node.left)
       p.gen_cast(node.typ.size(), node.typ.is_unsigned(), node.typ.kind.last() == .bool)
-      return
     }
     .nothing {
-      return
+    }
+    else {
+      p.gen(node.left)
+      p.gen(node.right)
+
+      println('  pop rdi')
+      println('  pop rax')
+
+      if node.typ.is_unsigned() {
+        p.gen_calc_unsigned(node.kind, node.typ.size())
+      } else {
+        p.gen_calc(node.kind)
+      }
+
+      println('  push rax')
     }
   }
-
-  p.gen(node.left)
-  p.gen(node.right)
-
-  println('  pop rdi')
-  println('  pop rax')
-
-  if node.typ.is_unsigned() {
-    p.gen_calc_unsigned(node.kind, node.typ.size())
-  } else {
-    p.gen_calc(node.kind)
-  }
-
-  println('  push rax')
 }
 

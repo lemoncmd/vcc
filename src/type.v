@@ -261,7 +261,7 @@ fn (p mut Parser) consume_type_back() &Type {
 fn (p mut Parser) expect_type() string {
   token := p.tokens[p.pos]
   if token.kind != .reserved || !token.str in Types {
-    unexp_err(token, 'Expected type but got ${token.str}')
+    unexp_err(token, 'Expected type but got $token.str')
   }
   p.pos++
   return token.str
@@ -381,7 +381,7 @@ fn (p Parser) check_func_typ(_typ &Type) {
   mut is_func := false
   for typ.kind.len != 0 {
     if is_func && typ.kind.last() in [.func, .ary] {
-      p.token_err('Function cannot return type `${typ.str()}`')
+      p.token_err('Function cannot return type `${*typ}`')
     }
     is_func = typ.kind.last() == .func
     typ = typ.reduce()
@@ -400,7 +400,7 @@ fn (typ Type) is_unsigned() bool {
   return false
 }
 
-fn (typ Type) str() string {
+pub fn (typ Type) str() string {
   match typ.kind.last() {
     .void   { return 'void' }
     .int    { return 'int' }
@@ -415,8 +415,8 @@ fn (typ Type) str() string {
     .ull    { return 'unsigned long long' }
     .ptr    { return '*'+typ.reduce().str() }
     .ary    {
-      last := if typ.suffix.last() < 0 {''} else {'${typ.suffix.last()}'}
-      return '[${last}]'+typ.reduce().str()
+      last := if typ.suffix.last() < 0 {''} else {'$typ.suffix.last()'}
+      return '[$last]'+typ.reduce().str()
     }
     .strc   { return '' } //todo
     .bool   { return '_Bool' }
@@ -442,7 +442,7 @@ fn (typ Type) size() int {
   if kind == .strc {
     strc := (typ.strc.last()).val
     if !strc.is_defined {
-      parse_err('Incomplete struct ${strc.name}')
+      parse_err('Incomplete struct $strc.name')
     } else {
       return strc.offset
     }
@@ -559,7 +559,7 @@ fn (node mut Node) add_type() {
   if !isnil(node.right) {node.right.add_type()}
 
   for i in node.code {
-    mut no := &Node(i)
+    mut no := i.val
     no.add_type()
   }
 
@@ -585,7 +585,13 @@ fn (node mut Node) add_type() {
         return
       }
       if node.left.typ.kind.last() == .void || node.right.typ.kind.last() == .void {
-        node.typ.kind << Typekind.void
+        typ.kind << Typekind.void
+        node.typ = typ
+      } else if node.left.typ.kind.last() == .strc {
+        if (node.left.typ.strc.last()).val != (node.right.typ.strc.last()).val {
+          parse_err('Incompatible struct in ternary')
+        }
+        node.typ = node.left.typ.clone()
       } else {
         bigtyp := type_max(node.left.typ, node.right.typ)
         node.typ = bigtyp.cast_ary()
@@ -614,7 +620,7 @@ fn (node mut Node) add_type() {
       } else if node.left.typ.kind.last() == .func {
         typ = node.left.typ.clone()
       } else {
-        typ.kind << Typekind.int
+        parse_err("Cannot dereference non-pointer type")
       }
       node.typ = typ
     }
@@ -632,5 +638,6 @@ fn (node mut Node) add_type() {
       typ.suffix << node.name.len+1
       node.typ = typ
     }
+    else {}
   }
 }
