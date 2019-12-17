@@ -118,7 +118,7 @@ fn (p mut Parser) gen_gval(node &Node) {
 fn (p Parser) gen_inc(kind Nodekind, typ &Type){
   println('  pop rax')
   if typ.kind.last() in [.ary, .func, .strc] {
-    parse_err('you cannot inc/decrement type `${*typ}`')
+    parse_err('Cannot inc/decrement type `${*typ}`')
   }
   cmd := if kind in [.incb, .incf] {
     'add'

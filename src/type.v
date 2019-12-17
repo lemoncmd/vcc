@@ -1,7 +1,7 @@
 module main
 
 const (
-  Types = ['int', 'long', 'short', 'char', 'struct', 'void', 'unsigned', 'signed', '_Bool']
+  Types = ['int', 'long', 'short', 'char', 'struct', 'union', 'void', 'unsigned', 'signed', '_Bool']
 )
 
 struct Type {
@@ -123,12 +123,18 @@ fn (p mut Parser) consume_type_base() (bool, &Type) {
   for p.consume('const') {
     token = p.tokens[p.pos]
   }
-  if token.str == 'struct'{
+  if token.str == 'struct' {
     if is_signed || is_unsigned {
       p.token_err('Struct cannot be signed or unsigned')
     }
     p.pos++
     typ = p.consume_type_struct()
+  } else if token.str == 'union' {
+    if is_signed || is_unsigned {
+      p.token_err('Union cannot be signed or unsigned')
+    }
+    p.pos++
+    typ = p.consume_type_union()
   } else if token.str == '_Bool' {
     if is_signed || is_unsigned {
       p.token_err('_Bool cannot be signed or unsigned')
@@ -300,14 +306,22 @@ fn (p mut Parser) consume_type_struct() &Type {
     if is_struct {
       if is_curbl && strc.is_defined {
         if p.consume('{') {
-          parse_err('struct $name is already declared in the block')
+          p.token_err('struct/union $name is already declared in the block')
+        } else if strc.kind != .strc {
+          p.token_err('`$name` is not struct')
         }
         typ.strc << Strcwrap{strc}
         return typ
       }
       if p.consume('{') {
         is_protoed = is_curbl && !strc.is_defined
+        if is_protoed && strc.kind != .strc {
+          p.token_err('`$name` is not struct')
+        }
       } else {
+        if strc.kind != .strc {
+          p.token_err('`$name` is not struct')
+        }
         typ.strc << Strcwrap{strc}
         return typ
       }
@@ -356,7 +370,7 @@ fn (p mut Parser) consume_type_struct() &Type {
         typ_child.merge(p.consume_type_front())
         name_child := p.expect_ident()
         if name_child in strc.content {
-          parse_err('duplicated member $name')
+          p.token_err('Duplicated member $name_child')
         }
         typ_child.merge(p.consume_type_back())
         strc.offset = align(strc.offset, typ_child.size_align())
@@ -366,7 +380,99 @@ fn (p mut Parser) consume_type_struct() &Type {
         strc.content[name_child] = Lvarwrap{lvar}
       }
     } else {
-      parse_err('expected type')
+      p.token_err('expected type')
+    }
+  }
+  strc.is_defined = true
+  strc.max_align = max_align
+  strc.offset = align(strc.offset, max_align)
+  typ.strc << Strcwrap{strc}
+  return typ
+}
+
+fn (p mut Parser) consume_type_union() &Type {
+  mut typ := &Type{kind:[Typekind.strc]}
+  is_ident, name := p.consume_ident()
+  mut is_protoed := false
+  if is_ident {
+    is_struct, mut strc, is_curbl := p.find_struct(name)
+    if is_struct {
+      if is_curbl && strc.is_defined {
+        if p.consume('{') {
+          p.token_err('struct/union $name is already declared in the block')
+        } else if strc.kind != .unn {
+          p.token_err('`$name` is not union')
+        }
+        typ.strc << Strcwrap{strc}
+        return typ
+      }
+      if p.consume('{') {
+        is_protoed = is_curbl && !strc.is_defined
+        if is_protoed && strc.kind != .unn {
+          p.token_err('`$name` is not union')
+        }
+      } else {
+        if strc.kind != .unn {
+          p.token_err('`$name` is not union')
+        }
+        typ.strc << Strcwrap{strc}
+        return typ
+      }
+    } else {
+      if !p.consume('{') {
+        strc2 := &Struct{name:name, kind:.strc}
+        if p.curbl.len == 0 {
+          p.glstrc[name] = Strcwrap{strc2}
+        } else {
+          mut curbl := (p.curbl.last()).val
+          curbl.structs[name] = Strcwrap{strc2}
+        }
+        typ.strc << Strcwrap{strc2}
+        return typ
+      }
+    }
+  } else {
+    p.expect('{')
+  }
+  _, _strc, _ := p.find_struct(name)
+  mut strc := if is_protoed {
+    _strc
+  } else {
+    &Struct{name:name, kind:.unn}
+  }
+  if !is_protoed && name != '' {
+    if p.curbl.len == 0 {
+      p.glstrc[name] = Strcwrap{strc}
+    } else {
+      mut curbl := (p.curbl.last()).val
+      curbl.structs[name] = Strcwrap{strc}
+    }
+  }
+  mut max_align := 1
+  for !p.consume('}') {
+    is_dec, typ_base := p.consume_type_base()
+    if is_dec {
+      mut first := true
+      for !p.consume(';') {
+        mut typ_child := typ_base.clone()
+        if first {
+          first = false
+        } else {
+          p.expect(',')
+        }
+        typ_child.merge(p.consume_type_front())
+        name_child := p.expect_ident()
+        if name_child in strc.content {
+          p.token_err('Duplicated member $name_child')
+        }
+        typ_child.merge(p.consume_type_back())
+        strc.offset = if typ_child.size() > strc.offset {typ_child.size()} else {strc.offset}
+        max_align = if typ_child.size_align() > max_align {typ_child.size_align()} else {max_align}
+        lvar := &Lvar{name_child, typ_child, false, false, false, false, 0}
+        strc.content[name_child] = Lvarwrap{lvar}
+      }
+    } else {
+      p.token_err('expected type')
     }
   }
   strc.is_defined = true
@@ -418,7 +524,21 @@ pub fn (typ Type) str() string {
       last := if typ.suffix.last() < 0 {''} else {'$typ.suffix.last()'}
       return '[$last]'+typ.reduce().str()
     }
-    .strc   { return '' } //todo
+    .strc   {
+      strc := (typ.strc.last()).val
+      postfix := match strc.kind {
+        .strc { 'struct' }
+        .unn { 'union' }
+        else { 'something' }
+      }
+      name := strc.name
+      mut members := []string
+      for i, _lvar in strc.content {
+        lvar := _lvar.val
+        members << '$lvar.typ.str() $i;'
+      }
+      return '$postfix $name{$members.join('')}'
+    } //todo
     .bool   { return '_Bool' }
     .func   {
       args := typ.func.last()

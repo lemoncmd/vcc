@@ -839,43 +839,6 @@ fn (p mut Parser) expr() &Node {
   return node
 }
 
-/*fn (p Parser) assign_struct(node &Node) &Node {
-  mut comma := p.new_node_num(0)
-  strc := (node.typ.strc.last()).val
-  for _, _member in strc.content {
-    member := _member.val
-    mut left := p.new_node(.add, node.left, p.new_node_num(member.offset))
-    left.typ = member.typ.clone()
-    left.typ.kind << Typekind.ptr
-    left = p.new_node(.deref, left, p.new_node_nothing())
-    mut right := p.new_node(.add, node.right, p.new_node_num(member.offset))
-    right.typ = member.typ.clone()
-    right.typ.kind << Typekind.ptr
-    right = p.new_node(.deref, right, p.new_node_nothing())
-    mut assign := p.new_node(.assign, left, right)
-    assign.add_type()
-    if assign.typ.kind.last() == .strc {
-      assign = p.assign_struct(assign)
-    } else if assign.typ.kind.last() == .ary {
-      assign = p.assign_array(assign)
-    }
-    comma = p.new_node(.comma, comma, assign)
-  }
-  comma = p.new_node(.comma, comma, node.left)
-  return comma
-}
-
-fn (p Parser) assign_array(node &Node) &Node {
-  mut comma := p.new_node_num(0)
-  size := node.typ.reduce().size()
-  for i in 0..node.typ.suffix.last() {
-    mut left := p.new_node(.add, node.left.left, p.new_node_num(i*size))
-    left.typ = node.left.typ.cast_ary()
-  }
-  comma = p.new_node(.comma, comma, node.left)
-  return comma
-}*/
-
 fn (p mut Parser) assign() &Node {
   mut node := p.ternary()
 
@@ -884,11 +847,10 @@ fn (p mut Parser) assign() &Node {
     node.add_type()
     if node.typ.kind.last() == .strc {
       if node.right.typ.kind.last() != .strc {
-        p.token_err('Incompatible type when assigning to struct')
+        p.token_err('Incompatible type `$node.right.typ.str()` when assigning to `$node.typ.str()`')
       } else if (node.typ.strc.last()).val != (node.right.typ.strc.last()).val {
-        p.token_err('Incompatible struct when assigning')
+        p.token_err('Incompatible struct/union when assigning `$node.right.typ.str()` to `$node.typ.str()`')
       }
-//      node = p.assign_struct(node)
         typ := node.typ.clone()
         node = p.new_node(.args, node.left, p.new_node(.args, node.right, p.new_node(.args, p.new_node_num(node.typ.size()), p.new_node_nothing())))
         node.add_type()
@@ -1255,7 +1217,7 @@ fn (p mut Parser) postfix() &Node {
     } else if p.consume('.') {
       node.add_type()
       if node.typ.kind.last() != .strc {
-        p.token_err('Expected struct type')
+        p.token_err('Expected struct/union type')
       }
       strc := (node.typ.strc.last()).val
       name := p.expect_ident()
@@ -1270,7 +1232,7 @@ fn (p mut Parser) postfix() &Node {
     } else if p.consume('->') {
       node.add_type()
       if !node.typ.is_ptr() || (node.typ.reduce()).kind.last() != .strc {
-        p.token_err('Expected pointer/array of struct type')
+        p.token_err('Expected pointer/array of struct/union type')
       }
       strc := (node.typ.strc.last()).val
       name := p.expect_ident()
