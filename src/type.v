@@ -225,8 +225,10 @@ fn (p mut Parser) consume_type_back() &Type {
     for !p.consume(')') {
       if first {
         if p.consume('void') {
-          p.expect(')')
-          break
+          if p.consume(')') {
+            break
+          }
+          p.pos--
         }
         first = false
       } else {

@@ -13,8 +13,8 @@ fn (p mut Parser) gen_main() {
 
   for name, _gvar in p.global {
     gvar := _gvar.val
-    size := gvar.typ.size()
     if !gvar.is_extern && !gvar.is_type && gvar.typ.kind.last() != .func {
+      size := gvar.typ.size()
       if !gvar.is_static {
         println('.global $name')
       }

@@ -12,16 +12,18 @@ fn try(expected int, input string) {
 }
 fn main(){
 
-file := create('tmp2.c') or {panic('failed to create tmp2.c')}
+mut file := create('tmp2.c') or {panic('failed to create tmp2.c')}
 file.write('
-#include <stdio.h>
+extern void *malloc(unsigned long int size);
+extern int printf(const char * format,...);
 int foo(){return 21;}
 int bar(int i, int j){return i+j;}
 int hw(){printf("Hello, world!\\n");}
 void alloc4(int**p, int a, int b, int c, int d){*p=malloc(16);**p=a;*(*p+1)=b;*(*p+2)=c;*(*p+3)=d;}
 ')
 file.close()
-system('gcc -c -o tmp2.o tmp2.c')
+system('./vcc tmp2.c > tmp2.s')
+system('gcc -c -o tmp2.o tmp2.s')
 
 try(0 , 'int main(){return 0;}')
 try(42, 'int main(){return 42;}')

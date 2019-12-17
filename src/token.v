@@ -238,11 +238,31 @@ fn tokenize(p string) []Tok {
 
     if p[pos].is_digit() {
       start_pos := pos
-      for pos < p.len && p[pos].is_digit() {
+      mut is_octal := false
+      if p[pos] == `0` {
         pos++
         lpos++
+        if p[pos] == `x` {
+          pos++
+          lpos++
+          for pos < p.len && p[pos].is_hex_digit() {
+            pos++
+            lpos++
+          }
+        } else if p[pos].is_oct_digit() {
+          is_octal = true
+          for pos < p.len && p[pos].is_oct_digit() {
+            pos++
+            lpos++
+          }
+        }
+      } else {
+        for pos < p.len && p[pos].is_digit() {
+          pos++
+          lpos++
+        }
       }
-      tokens << new_token(.num, p[start_pos..pos], line, lpos)
+      tokens << new_token(.num, if is_octal {'0o'} else {''} + p[start_pos..pos], line, lpos)
       continue
     }
 

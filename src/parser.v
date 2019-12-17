@@ -461,6 +461,9 @@ fn (p mut Parser) top() {
       p.expect(',')
       mut typ2 := &Type{}
       typ2.kind << typ.kind.first()
+      if typ.kind.first() == .strc {
+        typ2.strc << typ.strc.first()
+      }
       typb, str := p.consume_type_body()
       name = str
       typ2.merge(typb)
@@ -495,10 +498,12 @@ fn (p mut Parser) fnargs(args &Funcarg) (&Node, []Lvarwrap) {
     lvar.offset = offset
     lvars << Lvarwrap{lvar}
   }
-  for _lvar in lvars.reverse() {
-    lvar := _lvar.val
-    lvar_node := p.new_node_lvar(lvar.offset, lvar.typ)
-    node = p.new_node(.fnargs, lvar_node, node)
+  if lvars.len != 0 {
+    for _lvar in lvars.reverse() {
+      lvar := _lvar.val
+      lvar_node := p.new_node_lvar(lvar.offset, lvar.typ)
+      node = p.new_node(.fnargs, lvar_node, node)
+    }
   }
   return node, lvars
 }
