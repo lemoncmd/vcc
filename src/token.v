@@ -172,7 +172,7 @@ fn tokenize(p string) []Tok {
 
     if p[pos] == `'` {
       pos+=2
-      lpos+2
+      lpos+=2
       mut num := 0
       if p[pos-1] == `\\` {
         num = match p[pos] {

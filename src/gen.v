@@ -11,8 +11,7 @@ fn (p mut Parser) gen_main() {
   println('.intel_syntax noprefix')
   println('.data')
 
-  for name, _gvar in p.global {
-    gvar := _gvar.val
+  for name, gvar in p.global {
     if !gvar.is_extern && !gvar.is_type && gvar.typ.kind.last() != .func {
       size := gvar.typ.size()
       if !gvar.is_static {
@@ -23,8 +22,7 @@ fn (p mut Parser) gen_main() {
     }
   }
 
-  for i, _node in p.strs {
-    node := _node.val
+  for i, node in p.strs {
     offset := node.offset
     content := node.name
     println('.L.C.$offset:')
@@ -33,8 +31,7 @@ fn (p mut Parser) gen_main() {
 
   println('.text')
 
-  for name, _func in p.code {
-    func := _func.val
+  for name, func in p.code {
     p.curfn = func
     offset := align(p.curfn.offset, 16)
 
@@ -379,8 +376,7 @@ fn (p mut Parser) gen(node &Node) {
       p.gen(node.right)
     }
     .block {
-      for i in node.code {
-        code := i.val
+      for code in node.code {
         p.gen(code)
       }
     }
@@ -454,8 +450,7 @@ fn (p mut Parser) gen(node &Node) {
       println('.L.begin.$node.num:')
       mut i := 0
       p.gen(node.cond)
-      for _cons in node.code {
-        cons := _cons.val
+      for cons in node.code {
         p.gen(cons)
         println('  pop rdi')
         println('  pop rax')

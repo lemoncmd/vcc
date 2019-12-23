@@ -5,41 +5,18 @@ struct Parser {
   progstr string
 mut:
   pos int
-  code map[string]Funcwrap
+  code map[string]&Function
   ifnum int
   genifnum []int
   gencontnum []int
   curfn &Function
-  curbl []Nodewrap
-  cursw []Nodewrap
-  global map[string]Lvarwrap
-  glstrc map[string]Strcwrap
+  curbl []&Node
+  cursw []&Node
+  global map[string]&Lvar
+  glstrc map[string]&Struct
   str_offset int
-  strs []Nodewrap
+  strs []&Node
   statics int
-}
-
-struct Funcwrap {
-  val &Function
-}
-
-struct Lvarwrap {
-  val &Lvar
-}
-
-struct Nodewrap {
-mut:
-  val &Node
-}
-
-struct Strcwrap {
-mut:
-  val &Struct
-}
-
-struct Funcargwrap{
-mut:
-  val &Funcarg
 }
 
 enum Nodekind {
@@ -115,10 +92,10 @@ mut:
   offset int
   name string
   secondkind Nodekind
-  code []Nodewrap
+  code []&Node
   typ &Type
-  locals []Lvarwrap
-  structs map[string]Strcwrap
+  locals []&Lvar
+  structs map[string]&Struct
 }
 
 struct Lvar {
@@ -137,7 +114,7 @@ struct Struct {
   kind Structkind
 mut:
   is_defined bool
-  content map[string]Lvarwrap
+  content map[string]&Lvar
   offset int
   max_align int
 }
@@ -150,7 +127,7 @@ enum Structkind {
 
 struct Funcarg {
 mut:
-  args []Lvarwrap
+  args []&Lvar
 }
 
 fn (p Parser) look_for(op string) bool {
@@ -374,8 +351,7 @@ fn (p Parser) new_gvar(name string, typ &Type) &Lvar {
 fn (p Parser) find_lvar(name string) (bool, &Lvar, bool) {
   mut is_curbl := true
   for block in p.curbl.reverse() {
-    for i in block.val.locals {
-      lvar := i.val
+    for lvar in block.locals {
       if lvar.name == name {
         return true, lvar, is_curbl
       }
@@ -383,22 +359,21 @@ fn (p Parser) find_lvar(name string) (bool, &Lvar, bool) {
     is_curbl = false
   }
   if name in p.global {
-    return true, p.global[name].val, is_curbl
+    return true, p.global[name], is_curbl
   }
   return false, &Lvar{typ:0}, false
 }
 
 fn (p Parser) find_struct(name string) (bool, &Struct, bool) {
   mut is_curbl := true
-  for _block in p.curbl.reverse() {
-    block := _block.val
+  for block in p.curbl.reverse() {
     if name in block.structs {
-      return true, block.structs[name].val, is_curbl
+      return true, block.structs[name], is_curbl
     }
     is_curbl = false
   }
   if name in p.glstrc {
-    return true, p.glstrc[name].val, is_curbl
+    return true, p.glstrc[name], is_curbl
   }
   return false, &Struct{}, false
 }
@@ -435,7 +410,7 @@ fn (p mut Parser) top() {
     return
   }
   if name in p.global {//todo
-    gvar := p.global[name].val
+    gvar := p.global[name]
     if gvar.typ.kind.last() == .func && typ.kind.last() == .func {
       if is_typedef || gvar.is_type {
         p.token_err('`$name` is already declared')
@@ -448,14 +423,14 @@ fn (p mut Parser) top() {
   gvar.is_static = is_static
   gvar.is_extern = is_extern
   gvar.is_type = is_typedef
-  p.global[name] = Lvarwrap{gvar}
+  p.global[name] = gvar
   if p.consume('{') {
     if typ.kind.last() != .func {
       p.token_err('Expected `;` after top level declarator')
     }
     mut func := p.function(name, typ)
     func.is_static = is_static
-    p.code[name] = Funcwrap{func}
+    p.code[name] = func
   } else {
     for !p.consume(';') {
       p.expect(',')
@@ -477,17 +452,17 @@ fn (p mut Parser) top() {
       gvar2.is_static = is_static
       gvar2.is_extern = is_extern
       gvar2.is_type = is_typedef
-      p.global[name] = Lvarwrap{gvar2}
+      p.global[name] = gvar2
     }
   }
 }
 
-fn (p mut Parser) fnargs(args &Funcarg) (&Node, []Lvarwrap) {
-  mut lvars := []Lvarwrap
+fn (p mut Parser) fnargs(args &Funcarg) (&Node, []&Lvar) {
+  mut lvars := []&Lvar
   mut node := p.new_node_nothing()
   for arg in args.args {
-    name := arg.val.name
-    typ := arg.val.typ
+    name := arg.name
+    typ := arg.typ
     if name == '' {
       p.token_err('Parameter name omitted')
     }
@@ -496,11 +471,10 @@ fn (p mut Parser) fnargs(args &Funcarg) (&Node, []Lvarwrap) {
     p.curfn.offset = align(p.curfn.offset, typ.size_align())
     offset := p.curfn.offset
     lvar.offset = offset
-    lvars << Lvarwrap{lvar}
+    lvars << lvar
   }
   if lvars.len != 0 {
-    for _lvar in lvars.reverse() {
-      lvar := _lvar.val
+    for lvar in lvars.reverse() {
       lvar_node := p.new_node_lvar(lvar.offset, lvar.typ)
       node = p.new_node(.fnargs, lvar_node, node)
     }
@@ -517,13 +491,13 @@ fn (p mut Parser) function(name string, typ &Type) &Function {
   mut func := p.new_func(name, typ.reduce())
   p.curfn = func
   funcarg := typ.func.last()
-  num := funcarg.val.args.len
-  args, lvars := p.fnargs(funcarg.val)
+  num := funcarg.args.len
+  args, lvars := p.fnargs(funcarg)
 
   func.args = args
   func.num = num
   mut content := p.new_node(.block, p.new_node_nothing(), p.new_node_nothing())
-  p.curbl << Nodewrap{content}
+  p.curbl << content
   content.locals << lvars
   p.block_without_curbl(mut content)
   p.curbl.delete(p.curbl.len-1)
@@ -545,14 +519,14 @@ fn (p mut Parser) declare(typ &Type, name string, is_typedef bool) int {
   mut nlvar := p.new_lvar(name, typ, offset)
   nlvar.is_type = is_typedef
   mut block := p.curbl.last()
-  block.val.locals << Lvarwrap{nlvar}
+  block.locals << nlvar
   return offset
 }
 
 fn (p mut Parser) initialize(typ &Type, offset int) {
   if typ.kind.last() == .ary {
   } else if typ.kind.last() == .strc {
-    members := (typ.strc.last()).val.content
+    members := (typ.strc.last()).content
     mut ignored := (members.keys()).len == 0
     mut keys := [['']]
     keys.delete(0)
@@ -570,7 +544,7 @@ fn (p mut Parser) initialize(typ &Type, offset int) {
           p.token_err('There is no member called `$name`')
         }
       }
-      member := members[keys[0][0]].val
+      member := members[keys[0][0]]
       if p.consume('{')/*member.typ.kind.last() in [.array, .strc]*/ {
       } else {
         node := p.assign()
@@ -623,7 +597,7 @@ fn (p mut Parser) stmt() &Node {
   } else if p.consume('for') {
     p.expect('(')
     mut outer_block := p.new_node(.block, p.new_node_nothing(), p.new_node_nothing())
-    p.curbl << Nodewrap{outer_block}
+    p.curbl << outer_block
     mut node_tmp := p.new_node_nothing()
     if p.consume('typedef') || p.consume('static') {
       p.token_err('Declaration of non-local variable in `for` loop')
@@ -649,7 +623,7 @@ fn (p mut Parser) stmt() &Node {
           lvar := p.new_node_lvar(offset, typ)
           mut assign := p.new_node(.assign, lvar, p.assign())
           assign.add_type()
-          outer_block.code << Nodewrap{assign}
+          outer_block.code << assign
         }
       }
     }
@@ -675,7 +649,7 @@ fn (p mut Parser) stmt() &Node {
       node_tmp
     }
     stmt := p.stmt()
-    outer_block.code << Nodewrap{p.new_node_with_all(.forn, first, cond, stmt, right, p.ifnum)}
+    outer_block.code << p.new_node_with_all(.forn, first, cond, stmt, right, p.ifnum)
     p.curbl.delete(p.curbl.len-1)
     node = outer_block
     p.ifnum++
@@ -701,10 +675,10 @@ fn (p mut Parser) stmt() &Node {
     p.expect(')')
     node = p.new_node_with_cond(.swich, expr, p.new_node_nothing(), p.new_node_nothing(), p.ifnum)
     p.ifnum++
-    p.cursw << Nodewrap{node}
+    p.cursw << node
     mut block := p.new_node(.block, p.new_node_nothing(), p.new_node_nothing())
     block.secondkind = .swich
-    p.curbl << Nodewrap{block}
+    p.curbl << block
     p.expect('{')
     p.block_without_curbl(mut block)
     p.curbl.delete(p.curbl.len-1)
@@ -721,23 +695,23 @@ fn (p mut Parser) stmt() &Node {
     node.name = p.expect_ident()
     p.expect(';')
   } else if p.consume('case') {
-    if (p.curbl.last()).val.secondkind != .swich {
+    if (p.curbl.last()).secondkind != .swich {
       p.token_err('`case` should be in switch block')
     }
-    mut swblock := (p.cursw.last()).val
+    mut swblock := p.cursw.last()
     value := p.ternary()
     p.expect(':')
     num := swblock.num
     id := swblock.offset
     swblock.offset++
-    swblock.code << Nodewrap{value}
+    swblock.code << value
     node = p.new_node(.label, p.stmt(), p.new_node_nothing())
     node.name = 'case.$num\.$id'
   } else if p.consume('default') {
-    if (p.curbl.last()).val.secondkind != .swich {
+    if (p.curbl.last()).secondkind != .swich {
       p.token_err('`case` should be in switch block')
     }
-    mut swblock := (p.cursw.last()).val
+    mut swblock := p.cursw.last()
     p.expect(':')
     num := swblock.num
     swblock.name = 'hasdefault'
@@ -764,7 +738,7 @@ fn (p mut Parser) stmt() &Node {
 
 fn (p mut Parser) block() &Node {
   mut node := p.new_node(.block, p.new_node_nothing(), p.new_node_nothing())
-  p.curbl << Nodewrap{node}
+  p.curbl << node
 
   p.block_without_curbl(mut node)
 
@@ -802,9 +776,9 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
           offset := p.statics
           mut lvar := p.new_lvar(name, typ, offset)
           lvar.is_static = true
-          p.global['$name\.$offset'] = Lvarwrap{lvar}
+          p.global['$name\.$offset'] = lvar
           mut block := p.curbl.last()
-          block.val.locals << Lvarwrap{lvar}
+          block.locals << lvar
         } else if typ.kind.last() == .func {
           is_lvar, _, is_curbl := p.find_lvar(name)
           if is_lvar && is_curbl {
@@ -812,14 +786,14 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
           }
           mut lvar := p.new_lvar(name, typ, 0)
           mut block := p.curbl.last()
-          block.val.locals << Lvarwrap{lvar}
+          block.locals << lvar
           } else {
           offset := p.declare(typ, name, is_typedef)
           if !is_typedef && p.consume('=') {
             lvar := p.new_node_lvar(offset, typ)
             mut assign := p.new_node(.assign, lvar, p.assign())
             assign.add_type()
-            node.code << Nodewrap{assign}
+            node.code << assign
           }
         }
       }
@@ -827,7 +801,7 @@ fn (p mut Parser) block_without_curbl(node mut Node) {
       if is_static || is_typedef {
         p.token_err('Expected type')
       }
-      node.code << Nodewrap{p.stmt()}
+      node.code << p.stmt()
     }
   }
 }
@@ -853,7 +827,7 @@ fn (p mut Parser) assign() &Node {
     if node.typ.kind.last() == .strc {
       if node.right.typ.kind.last() != .strc {
         p.token_err('Incompatible type `$node.right.typ.str()` when assigning to `$node.typ.str()`')
-      } else if (node.typ.strc.last()).val != (node.right.typ.strc.last()).val {
+      } else if node.typ.strc.last() != node.right.typ.strc.last() {
         p.token_err('Incompatible struct/union when assigning `$node.right.typ.str()` to `$node.typ.str()`')
       }
         typ := node.typ.clone()
@@ -1224,12 +1198,12 @@ fn (p mut Parser) postfix() &Node {
       if node.typ.kind.last() != .strc {
         p.token_err('Expected struct/union type')
       }
-      strc := (node.typ.strc.last()).val
+      strc := node.typ.strc.last()
       name := p.expect_ident()
       if !name in strc.content {
         p.token_err('There is no member named `$name`')
       }
-      member := strc.content[name].val
+      member := strc.content[name]
       node = p.new_node(.add, node, p.new_node_num(member.offset))
       node.typ = member.typ.clone()
       node.typ.kind << Typekind.ptr
@@ -1239,12 +1213,12 @@ fn (p mut Parser) postfix() &Node {
       if !node.typ.is_ptr() || (node.typ.reduce()).kind.last() != .strc {
         p.token_err('Expected pointer/array of struct/union type')
       }
-      strc := (node.typ.strc.last()).val
+      strc := node.typ.strc.last()
       name := p.expect_ident()
       if !name in strc.content {
         p.token_err('There is no member named `$name`')
       }
-      member := strc.content[name].val
+      member := strc.content[name]
       node = p.new_node(.add, node, p.new_node_num(member.offset))
       node.typ = member.typ.clone()
       node.typ.kind << Typekind.ptr
@@ -1277,7 +1251,7 @@ fn (p mut Parser) primary() &Node {
     if is_string {
       node := p.new_node_string(content, p.str_offset)
       p.str_offset++
-      p.strs << Nodewrap{node}
+      p.strs << node
       return node
     }
     return p.new_node_num(p.expect_number())

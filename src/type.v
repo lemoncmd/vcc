@@ -8,8 +8,8 @@ struct Type {
 mut:
   kind []Typekind
   suffix []int
-  strc []Strcwrap
-  func []Funcargwrap
+  strc []&Struct
+  func []&Funcarg
 }
 
 enum Typekind {
@@ -257,11 +257,11 @@ fn (p mut Parser) consume_type_back() &Type {
         paras << name
       }
       lvar := p.new_lvar(name, argtyp, 0)
-      args.args << Lvarwrap{lvar}
+      args.args << lvar
     }
     typ = p.consume_type_back()
     typ.kind << Typekind.func
-    typ.func << Funcargwrap{args}
+    typ.func << args
   }
   return typ
 }
@@ -312,7 +312,7 @@ fn (p mut Parser) consume_type_struct() &Type {
         } else if strc.kind != .strc {
           p.token_err('`$name` is not struct')
         }
-        typ.strc << Strcwrap{strc}
+        typ.strc << strc
         return typ
       }
       if p.consume('{') {
@@ -324,19 +324,19 @@ fn (p mut Parser) consume_type_struct() &Type {
         if strc.kind != .strc {
           p.token_err('`$name` is not struct')
         }
-        typ.strc << Strcwrap{strc}
+        typ.strc << strc
         return typ
       }
     } else {
       if !p.consume('{') {
         strc2 := &Struct{name:name, kind:.strc}
         if p.curbl.len == 0 {
-          p.glstrc[name] = Strcwrap{strc2}
+          p.glstrc[name] = strc2
         } else {
-          mut curbl := (p.curbl.last()).val
-          curbl.structs[name] = Strcwrap{strc2}
+          mut curbl := p.curbl.last()
+          curbl.structs[name] = strc2
         }
-        typ.strc << Strcwrap{strc2}
+        typ.strc << strc2
         return typ
       }
     }
@@ -351,10 +351,10 @@ fn (p mut Parser) consume_type_struct() &Type {
   }
   if !is_protoed && name != '' {
     if p.curbl.len == 0 {
-      p.glstrc[name] = Strcwrap{strc}
+      p.glstrc[name] = strc
     } else {
-      mut curbl := (p.curbl.last()).val
-      curbl.structs[name] = Strcwrap{strc}
+      mut curbl := p.curbl.last()
+      curbl.structs[name] = strc
     }
   }
   mut max_align := 1
@@ -379,7 +379,7 @@ fn (p mut Parser) consume_type_struct() &Type {
         max_align = if typ_child.size_align() > max_align {typ_child.size_align()} else {max_align}
         lvar := &Lvar{name_child, typ_child, false, false, false, false, strc.offset}
         strc.offset += typ_child.size()
-        strc.content[name_child] = Lvarwrap{lvar}
+        strc.content[name_child] = lvar
       }
     } else {
       p.token_err('expected type')
@@ -388,7 +388,7 @@ fn (p mut Parser) consume_type_struct() &Type {
   strc.is_defined = true
   strc.max_align = max_align
   strc.offset = align(strc.offset, max_align)
-  typ.strc << Strcwrap{strc}
+  typ.strc << strc
   return typ
 }
 
@@ -405,7 +405,7 @@ fn (p mut Parser) consume_type_union() &Type {
         } else if strc.kind != .unn {
           p.token_err('`$name` is not union')
         }
-        typ.strc << Strcwrap{strc}
+        typ.strc << strc
         return typ
       }
       if p.consume('{') {
@@ -417,19 +417,19 @@ fn (p mut Parser) consume_type_union() &Type {
         if strc.kind != .unn {
           p.token_err('`$name` is not union')
         }
-        typ.strc << Strcwrap{strc}
+        typ.strc << strc
         return typ
       }
     } else {
       if !p.consume('{') {
         strc2 := &Struct{name:name, kind:.strc}
         if p.curbl.len == 0 {
-          p.glstrc[name] = Strcwrap{strc2}
+          p.glstrc[name] = strc2
         } else {
-          mut curbl := (p.curbl.last()).val
-          curbl.structs[name] = Strcwrap{strc2}
+          mut curbl := p.curbl.last()
+          curbl.structs[name] = strc2
         }
-        typ.strc << Strcwrap{strc2}
+        typ.strc << strc2
         return typ
       }
     }
@@ -444,10 +444,10 @@ fn (p mut Parser) consume_type_union() &Type {
   }
   if !is_protoed && name != '' {
     if p.curbl.len == 0 {
-      p.glstrc[name] = Strcwrap{strc}
+      p.glstrc[name] = strc
     } else {
-      mut curbl := (p.curbl.last()).val
-      curbl.structs[name] = Strcwrap{strc}
+      mut curbl := p.curbl.last()
+      curbl.structs[name] = strc
     }
   }
   mut max_align := 1
@@ -471,7 +471,7 @@ fn (p mut Parser) consume_type_union() &Type {
         strc.offset = if typ_child.size() > strc.offset {typ_child.size()} else {strc.offset}
         max_align = if typ_child.size_align() > max_align {typ_child.size_align()} else {max_align}
         lvar := &Lvar{name_child, typ_child, false, false, false, false, 0}
-        strc.content[name_child] = Lvarwrap{lvar}
+        strc.content[name_child] = lvar
       }
     } else {
       p.token_err('expected type')
@@ -480,7 +480,7 @@ fn (p mut Parser) consume_type_union() &Type {
   strc.is_defined = true
   strc.max_align = max_align
   strc.offset = align(strc.offset, max_align)
-  typ.strc << Strcwrap{strc}
+  typ.strc << strc
   return typ
 }
 
@@ -527,7 +527,7 @@ pub fn (typ Type) str() string {
       return '[$last]'+typ.reduce().str()
     }
     .strc   {
-      strc := (typ.strc.last()).val
+      strc := typ.strc.last()
       postfix := match strc.kind {
         .strc { 'struct' }
         .unn { 'union' }
@@ -535,8 +535,7 @@ pub fn (typ Type) str() string {
       }
       name := strc.name
       mut members := []string
-      for i, _lvar in strc.content {
-        lvar := _lvar.val
+      for i, lvar in strc.content {
         members << '$lvar.typ.str() $i;'
       }
       return '$postfix $name{$members.join('')}'
@@ -545,8 +544,8 @@ pub fn (typ Type) str() string {
     .func   {
       args := typ.func.last()
       mut strs := []string
-      for lvar in args.val.args {
-        strs << lvar.val.typ.str()
+      for lvar in args.args {
+        strs << lvar.typ.str()
       }
       str := strs.join(', ')
       return 'fn($str) '+typ.reduce().str()
@@ -562,7 +561,7 @@ fn (typ Type) size() int {
     parse_err('Cannot use incomplete type `void`')
   }
   if kind == .strc {
-    strc := (typ.strc.last()).val
+    strc := typ.strc.last()
     if !strc.is_defined {
       parse_err('Incomplete struct $strc.name')
     } else {
@@ -595,7 +594,7 @@ fn (typ Type) size_align() int {
   if typ.kind.last() == .ary {
     return typ.reduce().size_align()
   } else if typ.kind.last() == .strc {
-    return (typ.strc.last()).val.max_align
+    return (typ.strc.last()).max_align
   } else {
     return typ.size()
   }
@@ -681,7 +680,7 @@ fn (node mut Node) add_type() {
   if !isnil(node.right) {node.right.add_type()}
 
   for i in node.code {
-    mut no := i.val
+    mut no := i
     no.add_type()
   }
 
@@ -710,7 +709,7 @@ fn (node mut Node) add_type() {
         typ.kind << Typekind.void
         node.typ = typ
       } else if node.left.typ.kind.last() == .strc {
-        if (node.left.typ.strc.last()).val != (node.right.typ.strc.last()).val {
+        if node.left.typ.strc.last() != node.right.typ.strc.last() {
           parse_err('Incompatible struct in ternary')
         }
         node.typ = node.left.typ.clone()
