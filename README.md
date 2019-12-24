@@ -1,16 +1,17 @@
 # VCC - The C Compiler in V
 
-This is a toy C compiler written in V.
-This compiler is based on [chibicc](https://github.com/rui314/chibicc) by Rui Ueyama.
+This is a toy C compiler written in V.  
+This compiler is based on [chibicc](https://github.com/rui314/chibicc) by Rui Ueyama.  
 This is the first compiler I have made.
 
 The main object of this compiler is to compile The V Programming Language and compile itself by produced V binary.
 
-Document by Rui Ueyama(Japanese): https://sigbus.info/compilerbook
-Blog(Japanese): https://blog.anzu.tech/post/vcc
+Document by Rui Ueyama(Japanese): https://sigbus.info/compilerbook  
+My blog(Japanese): https://blog.anzu.tech/post/vcc
 
 ## Usage
-Please make sure that the V compiler is installed on your terminal.
+Please make sure that the V compiler is installed on your terminal.  
+The V Programming Language: https://vlang.io
 
 To build VCC, run the following command
 ```sh
