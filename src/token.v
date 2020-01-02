@@ -1,4 +1,4 @@
-module main
+module src
 
 struct Tok {
   kind Token
@@ -39,7 +39,7 @@ fn hex_to_num(b byte) int {
   return int(b - `a` + 10)
 }
 
-fn tokenize(p string) []Tok {
+pub fn tokenize(p string) []Tok {
   mut tokens := []Tok
   mut pos := 0
   mut line := 1

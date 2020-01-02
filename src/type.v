@@ -1,4 +1,4 @@
-module main
+module src
 
 const (
   Types = ['int', 'long', 'short', 'char', 'struct', 'union', 'void', 'unsigned', 'signed', '_Bool']

@@ -1,4 +1,4 @@
-module main
+module src
 
 const (
   Reg1 = ['dil', 'sil', 'dl', 'cl', 'r8b', 'r9b']
@@ -7,7 +7,7 @@ const (
   Regs = ['rdi', 'rsi', 'rdx', 'rcx', 'r8', 'r9']
 )
 
-fn (p mut Parser) gen_main() {
+pub fn (p mut Parser) gen_main() {
   println('.intel_syntax noprefix')
   println('.data')
 
