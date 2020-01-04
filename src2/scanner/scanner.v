@@ -58,7 +58,11 @@ fn (s &Scanner) read(num int) string {
   return ''
 }
 
-fn (s mut Scanner) skip_delimiter() {
+pub fn (s &Scanner) is_end() bool {
+  return s.pos >= s.program.len
+}
+
+pub fn (s mut Scanner) skip_delimiter() {
   for {
     c := s.program[s.pos]
     len := s.program.len
@@ -122,7 +126,7 @@ fn (s &Scanner) create_token(kind token.Kind, str string) token.Token {
   }
 }
 
-fn (s &Scanner) end_of_file() token.Token {
+pub fn (s &Scanner) end_of_file() token.Token {
   return s.create_token(.eof, '')
 }
 
