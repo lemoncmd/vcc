@@ -1,8 +1,6 @@
 module main
 
-import (
-  src2.scanner as scanner
-)
+import scanner
 
 fn main() {
   mut s := &scanner.Scanner{'==',0,1,0}

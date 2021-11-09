@@ -1,8 +1,6 @@
 module parser
 
-import (
-  src2.ast
-)
+import ast
 
 fn (p mut Parser) top() {
 }

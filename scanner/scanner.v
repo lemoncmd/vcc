@@ -1,8 +1,6 @@
 module scanner
 
-import (
-  src2.token
-)
+import token
 
 pub struct Scanner {
 mut:

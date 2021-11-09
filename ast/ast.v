@@ -1,8 +1,6 @@
 module ast
 
-import (
-  src2.token
-)
+import token
 
 pub type Stmt = IfStmt | ForStmt | DoStmt | SwitchStmt |
 LabelStmt | CaseStmt | GotoStmt | BreakStmt | ContinueStmt |

@@ -1,9 +1,8 @@
 module parser
 
-import (
-  src2.scanner
-  src2.token
-)
+import scanner
+import token
+
 
 pub struct Parser {
 mut:
