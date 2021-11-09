@@ -2,57 +2,73 @@ module ast
 
 import token
 
-pub type Stmt = IfStmt | ForStmt | DoStmt | SwitchStmt |
-LabelStmt | CaseStmt | GotoStmt | BreakStmt | ContinueStmt |
-ReturnStmt | BlockStmt | EmptyStmt
+pub type Stmt = BlockStmt
+	| BreakStmt
+	| CaseStmt
+	| ContinueStmt
+	| DoStmt
+	| EmptyStmt
+	| ForStmt
+	| GotoStmt
+	| IfStmt
+	| LabelStmt
+	| ReturnStmt
+	| SwitchStmt
 
-pub type Expr = TernaryExpr | BinaryExpr | UnaryExpr |
-CrementExpr | CallExpr | SelectorExpr |
-IntegerLiteral | FloatLiteral | StringLiteral |
-LvarLiteral | GvarLiteral
+pub type Expr = BinaryExpr
+	| CallExpr
+	| CrementExpr
+	| FloatLiteral
+	| GvarLiteral
+	| IntegerLiteral
+	| LvarLiteral
+	| SelectorExpr
+	| StringLiteral
+	| TernaryExpr
+	| UnaryExpr
 
 pub struct IfStmt {
 pub:
-  cond Expr
-  stmt Stmt
-  else_stmt Stmt
+	cond      Expr
+	stmt      Stmt
+	else_stmt Stmt
 }
 
 pub struct ForStmt {
 pub:
-  first ?Expr
-  cond Expr
-  next ?Expr
-  stmt Stmt
+	first ?Expr
+	cond  Expr
+	next  ?Expr
+	stmt  Stmt
 }
 
 pub struct DoStmt {
 pub:
-  cond Expr
-  stmt Stmt
+	cond Expr
+	stmt Stmt
 }
 
 pub struct SwitchStmt {
 pub:
-  cases []CaseStmt
-  stmt BlockStmt
+	cases []CaseStmt
+	stmt  BlockStmt
 }
 
 pub struct LabelStmt {
 pub:
-  name string
-  stmt Stmt
+	name string
+	stmt Stmt
 }
 
 pub struct CaseStmt {
 pub:
-  expr Expr
-  stmt Stmt
+	expr Expr
+	stmt Stmt
 }
 
 pub struct GotoStmt {
 pub:
-  name string
+	name string
 }
 
 pub struct BreakStmt {
@@ -63,12 +79,12 @@ pub struct ContinueStmt {
 
 pub struct ReturnStmt {
 pub:
-  expr Expr
+	expr Expr
 }
 
 pub struct BlockStmt {
 pub:
-  stmts []Stmt
+	stmts []Stmt
 }
 
 pub struct EmptyStmt {
@@ -76,68 +92,69 @@ pub struct EmptyStmt {
 
 pub struct TernaryExpr {
 pub:
-  cond Expr
-  left Expr
-  right Expr
+	cond  Expr
+	left  Expr
+	right Expr
 }
 
 pub struct BinaryExpr {
 pub:
-  op token.Kind
-  left Expr
-  right Expr
+	op    token.Kind
+	left  Expr
+	right Expr
 }
 
 pub struct UnaryExpr {
 pub:
-  op token.Kind
-  left Expr
+	op   token.Kind
+	left Expr
 }
 
 pub struct SelectorExpr {
 pub:
-  left Expr
-  field string
+	left  Expr
+	field string
 }
 
 pub struct CrementExpr {
 pub:
-  op token.Kind
-  is_front bool
-  left Expr
+	op       token.Kind
+	is_front bool
+	left     Expr
 }
 
 pub struct CallExpr {
 pub:
-  left Expr
-  args []Expr
+	left Expr
+	args []Expr
 }
 
 pub struct IntegerLiteral {
 pub:
-  val u64
+	val u64
 }
 
 pub struct FloatLiteral {
 pub:
-  val string
+	val string
 }
 
 pub struct StringLiteral {
 pub:
-  val string
+	val string
 }
 
 pub struct LvarLiteral {
 pub:
-  offset u64
+	offset u64
 }
 
 pub struct GvarLiteral {
 pub:
-  name string
+	name string
 }
+
 /*
-  sizof
+sizof
   cast
 */

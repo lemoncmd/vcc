@@ -2,5 +2,5 @@ module parser
 
 import ast
 
-fn (p mut Parser) top() {
+fn (mut p Parser) top() {
 }
