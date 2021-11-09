@@ -57,10 +57,6 @@ fn (s &Scanner) read(num int) string {
 	return ''
 }
 
-pub fn (s &Scanner) is_end() bool {
-	return s.pos >= s.program.len
-}
-
 pub fn (mut s Scanner) skip_delimiter() {
 	for {
 		c := s.program[s.pos] or {return}

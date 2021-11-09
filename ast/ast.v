@@ -2,6 +2,10 @@ module ast
 
 import token
 
+struct FunctionDecl {
+	name string
+}
+
 pub type Stmt = BlockStmt
 	| BreakStmt
 	| CaseStmt
