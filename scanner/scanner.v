@@ -10,6 +10,7 @@ mut:
 	lpos    int
 }
 
+[noreturn]
 fn (s &Scanner) error(str string) {
 	program := s.program.split_into_lines()[s.line - 1]
 	here := [' '].repeat(s.lpos).join('')
@@ -62,7 +63,7 @@ pub fn (s &Scanner) is_end() bool {
 
 pub fn (mut s Scanner) skip_delimiter() {
 	for {
-		c := s.program[s.pos]
+		c := s.program[s.pos] or {return}
 		len := s.program.len
 
 		if c == `\n` {
@@ -129,7 +130,7 @@ pub fn (s &Scanner) end_of_file() token.Token {
 }
 
 pub fn (mut s Scanner) scan() token.Token {
-	// s.skip_delimiter()
+	s.skip_delimiter()
 
 	for i, res in token.reserves {
 		if s.is_token_string(res) {
@@ -176,79 +177,79 @@ pub fn (mut s Scanner) scan() token.Token {
 	}
 
 	skips = 1
-	c := s.program[s.pos]
+	c := s.program[s.pos] or {return s.end_of_file()}
 	match c {
 		`+` {
-			return s.create_token(.plus, c.str())
+			return s.create_token(.plus, '+')
 		}
 		`-` {
-			return s.create_token(.minus, c.str())
+			return s.create_token(.minus, '-')
 		}
 		`*` {
-			return s.create_token(.mul, c.str())
+			return s.create_token(.mul, '*')
 		}
 		`/` {
-			return s.create_token(.div, c.str())
+			return s.create_token(.div, '/')
 		}
 		`%` {
-			return s.create_token(.mod, c.str())
+			return s.create_token(.mod, '%')
 		}
 		`^` {
-			return s.create_token(.xor, c.str())
+			return s.create_token(.xor, '^')
 		}
 		`|` {
-			return s.create_token(.aor, c.str())
+			return s.create_token(.aor, '|')
 		}
 		`&` {
-			return s.create_token(.aand, c.str())
+			return s.create_token(.aand, '&')
 		}
 		`~` {
-			return s.create_token(.anot, c.str())
+			return s.create_token(.anot, '~')
 		}
 		`!` {
-			return s.create_token(.lnot, c.str())
+			return s.create_token(.lnot, '!')
 		}
 		`>` {
-			return s.create_token(.gt, c.str())
+			return s.create_token(.gt, '>')
 		}
 		`<` {
-			return s.create_token(.lt, c.str())
+			return s.create_token(.lt, '<')
 		}
 		`,` {
-			return s.create_token(.comma, c.str())
+			return s.create_token(.comma, ',')
 		}
 		`:` {
-			return s.create_token(.colon, c.str())
+			return s.create_token(.colon, ':')
 		}
 		`.` {
-			return s.create_token(.dot, c.str())
+			return s.create_token(.dot, '.')
 		}
 		`;` {
-			return s.create_token(.semi, c.str())
+			return s.create_token(.semi, ';')
 		}
 		`?` {
-			return s.create_token(.question, c.str())
+			return s.create_token(.question, '?')
 		}
 		`=` {
-			return s.create_token(.assign, c.str())
+			return s.create_token(.assign, '=')
 		}
 		`(` {
-			return s.create_token(.lpar, c.str())
+			return s.create_token(.lpar, '(')
 		}
 		`)` {
-			return s.create_token(.rpar, c.str())
+			return s.create_token(.rpar, ')')
 		}
 		`{` {
-			return s.create_token(.lsbr, c.str())
+			return s.create_token(.lsbr, '{')
 		}
 		`}` {
-			return s.create_token(.rsbr, c.str())
+			return s.create_token(.rsbr, '}')
 		}
 		`[` {
-			return s.create_token(.lcbr, c.str())
+			return s.create_token(.lcbr, '[')
 		}
 		`]` {
-			return s.create_token(.rcbr, c.str())
+			return s.create_token(.rcbr, ']')
 		}
 		`"` {
 			skips = 0
