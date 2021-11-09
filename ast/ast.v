@@ -31,6 +31,8 @@ pub type Expr = BinaryExpr
 	| StringLiteral
 	| TernaryExpr
 	| UnaryExpr
+	| SizeofExpr
+	| CastExpr
 
 pub struct IfStmt {
 pub:
@@ -159,7 +161,9 @@ pub:
 	name string
 }
 
-/*
-sizof
-  cast
-*/
+pub type SizeofExpr = Type | Expr
+
+pub struct CastExpr {
+	typ Type
+	left Expr
+}

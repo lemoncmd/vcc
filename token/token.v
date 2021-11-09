@@ -98,6 +98,12 @@ pub enum Kind {
 	k_while
 }
 
+[inline]
+pub fn (k Kind) is_assign() bool {
+	return int(k) >= int(Kind.assign) && int(k) <= int(Kind.rs_assign)
+}
+
+[inline]
 pub fn (k Kind) is_keyword() bool {
 	return int(k) >= int(Kind.k_bool)
 }

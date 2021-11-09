@@ -17,11 +17,13 @@ fn (mut p Parser) next() {
 	p.tok = p.tokens[p.pos]
 }
 
+[noreturn]
 fn unexp_err(token token.Token, s string) {
   eprintln('${token.line}:${token.pos}: $s')
   exit(1)
 }
 
+[noreturn]
 fn (p Parser) token_err(s string) {
   program := p.program.split_into_lines()[p.tok.line-1]
   here := [' '].repeat(p.tok.pos).join('')
