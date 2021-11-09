@@ -11,14 +11,17 @@ pub type Stmt = BlockStmt
 	| BreakStmt
 	| CaseStmt
 	| ContinueStmt
+	| DeclStmt
 	| DoStmt
 	| EmptyStmt
+	| ExprStmt
 	| ForStmt
 	| GotoStmt
 	| IfStmt
 	| LabelStmt
 	| ReturnStmt
 	| SwitchStmt
+	| WhileStmt
 
 pub type Expr = BinaryExpr
 	| CallExpr
@@ -43,10 +46,16 @@ pub:
 
 pub struct ForStmt {
 pub:
-	first ?Expr
+	first Stmt
 	cond  Expr
-	next  ?Expr
+	next  Expr
 	stmt  Stmt
+}
+
+pub struct WhileStmt {
+pub:
+	cond Expr
+	stmt Stmt
 }
 
 pub struct DoStmt {
@@ -95,6 +104,22 @@ pub:
 }
 
 pub struct EmptyStmt {
+}
+
+pub struct ExprStmt {
+pub:
+	expr Expr
+}
+
+pub struct DeclStmt {
+pub:
+	decls []Decl
+}
+
+pub struct Decl {
+pub:
+	typ Type
+	name string
 }
 
 pub struct TernaryExpr {

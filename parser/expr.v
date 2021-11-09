@@ -38,9 +38,7 @@ fn (mut p Parser) ternary() ast.Expr {
 	if p.tok.kind == .question {
 		p.next()
 		expr_true := p.expr()
-		if p.tok.kind != .colon {
-			p.token_err('Expected `:`')
-		}
+		p.check(.colon)
 		p.next()
 		node = ast.TernaryExpr{
 			cond: node
@@ -271,7 +269,7 @@ fn (mut p Parser) postfix() ast.Expr {
 					left: node
 				}
 			}
-			.lsbr {
+			.lcbr {
 				p.next()
 			}
 			.lpar {
@@ -295,20 +293,24 @@ fn (mut p Parser) primary() ast.Expr {
 	match p.tok.kind {
 		.lpar {
 			node := p.expr()
-			if p.tok.kind != .rpar {
-				p.token_err('Expected `)`')
-			}
+			p.check(.rpar)
 			p.next()
 			return node
 		}
 		.ident {
-			return ast.GvarLiteral{name:p.tok.str} //TODO distinguish ident
+			name := p.tok.str
+			p.next()
+			return ast.GvarLiteral{name: name} //TODO distinguish ident
 		}
 		.num {
-			return ast.IntegerLiteral{val:p.tok.str.u64()}
+			val := p.tok.str.u64()
+			p.next()
+			return ast.IntegerLiteral{val: val}
 		}
 		.str {
-			return ast.StringLiteral{val:p.tok.str}
+			str := p.tok.str
+			p.next()
+			return ast.StringLiteral{val: str}
 		}
 		else {
 			p.token_err('Expected primary')

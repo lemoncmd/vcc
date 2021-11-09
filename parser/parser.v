@@ -29,3 +29,9 @@ fn (p Parser) token_err(s string) {
   here := [' '].repeat(p.tok.pos).join('')
   unexp_err(p.tok, '$s\n$program\n$here^here')
 }
+
+fn (mut p Parser) check(kind token.Kind) {
+	if p.tok.kind != kind {
+		p.token_err('Expected $kind')
+	}
+}

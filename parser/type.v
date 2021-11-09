@@ -38,7 +38,7 @@ fn (mut p Parser) read_type_extend(base ast.BaseType, params RTEParams) []DeclPa
 			}
 		}
 		pairs << DeclPair{typ:typ, name:name}
-		if p.tok.kind == .comma {
+		if params.consume_comma && p.tok.kind == .comma {
 			p.next()
 		} else {
 			break
@@ -64,6 +64,7 @@ fn (mut p Parser) read_type_internal() ([]ast.Type, string) {
 		}
 	} else if p.tok.kind == .ident {
 		name = p.tok.str
+		p.next()
 	}
 	for {
 		match p.tok.kind {
@@ -71,15 +72,13 @@ fn (mut p Parser) read_type_internal() ([]ast.Type, string) {
 				p.next()
 				types << p.read_type_function()
 			}
-			.lsbr {
+			.lcbr {
 				p.next()
 				//TODO const expr
 				number := if p.tok.kind == .num {
 					p.tok.str.int()
 				} else {-1}
-				if p.tok.kind != .rsbr {
-					p.token_err('Expected `]`')
-				}
+				p.check(.rcbr)
 				types << ast.Array{number:number}
 			}
 			else {break}
@@ -92,9 +91,7 @@ fn (mut p Parser) read_type_internal() ([]ast.Type, string) {
 }
 
 fn (mut p Parser) read_type_function() ast.Function {
-	if p.tok.kind != .rpar {
-		p.token_err('Expected `)`')
-	}
+	p.check(.rpar)
 	p.next()
 	return ast.Function{}
 }
