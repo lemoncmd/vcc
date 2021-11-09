@@ -2,8 +2,9 @@ module ast
 
 import token
 
-struct FunctionDecl {
-	name string
+pub struct FunctionDecl {
+	typ Type
+	body BlockStmt
 }
 
 pub type Stmt = BlockStmt

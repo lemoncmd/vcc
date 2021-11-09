@@ -98,6 +98,10 @@ pub enum Kind {
 	k_while
 }
 
+pub fn (k Kind) is_keyword() bool {
+	return int(k) >= int(Kind.k_bool)
+}
+
 pub const (
 	reserves = [
 		'_Bool',

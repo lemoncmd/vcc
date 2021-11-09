@@ -1,6 +1,5 @@
 module parser
 
-import scanner
 import token
 import ast
 
@@ -10,7 +9,7 @@ mut:
 	tokens []token.Token
 	pos    int
 	tok    token.Token
-	funs   ast.Function
+	funs   map[string]ast.FunctionDecl
 }
 
 fn (mut p Parser) next() {

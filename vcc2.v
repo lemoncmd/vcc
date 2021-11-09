@@ -22,4 +22,5 @@ fn main() {
 		pos:-1
 		tok:tokens[0]
 	}
+	p.top()
 }
