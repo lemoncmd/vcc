@@ -5,7 +5,7 @@ import token
 import parser
 
 fn main() {
-	program := 'int hoge(){int aho = 3+1;}'
+	program := 'int main(int argc, int*argv[]) {printf("%d\\n", argc);}'
 	mut s := &scanner.Scanner{program, 0, 1, 0}
 	mut tokens := []token.Token{}
 	for {

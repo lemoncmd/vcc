@@ -18,6 +18,7 @@ pub struct Function {
 pub mut:
 	args []FuncArgs
 	base Type
+	is_extensible bool
 }
 
 pub struct FuncArgs {

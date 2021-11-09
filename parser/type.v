@@ -78,7 +78,9 @@ fn (mut p Parser) read_type_internal() ([]ast.Type, string) {
 				number := if p.tok.kind == .num {
 					p.tok.str.int()
 				} else {-1}
+				if p.tok.kind == .num { p.next() }
 				p.check(.rcbr)
+				p.next()
 				types << ast.Array{number:number}
 			}
 			else {break}
@@ -91,9 +93,31 @@ fn (mut p Parser) read_type_internal() ([]ast.Type, string) {
 }
 
 fn (mut p Parser) read_type_function() ast.Function {
+	mut is_extensible := true
+	mut args := []ast.FuncArgs{}
+	for p.tok.kind != .rpar {
+		if p.tok.kind == .tridot {
+			p.next()
+			break
+		} else {
+			is_extensible = false
+		}
+		decl := p.read_type_extend(p.read_base_type())[0]
+		args << ast.FuncArgs{
+			name: decl.name
+			typ: decl.typ
+		}
+		if p.tok.kind != .comma {
+			break
+		}
+		p.next()
+		if p.tok.kind == .rpar {
+			p.token_err('Expected argument')
+		}
+	}
 	p.check(.rpar)
 	p.next()
-	return ast.Function{}
+	return ast.Function{args: args, is_extensible: is_extensible}
 }
 
 enum BaseType4Read {

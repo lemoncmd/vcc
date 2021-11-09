@@ -258,6 +258,7 @@ fn (mut p Parser) unary() ast.Expr {
 
 fn (mut p Parser) postfix() ast.Expr {
 	mut node := p.primary()
+	println(node)
 	for {
 		op := p.tok.kind
 		match op {
@@ -271,9 +272,38 @@ fn (mut p Parser) postfix() ast.Expr {
 			}
 			.lcbr {
 				p.next()
+				expr := p.expr()
+				p.check(.rcbr)
+				p.next()
+				node = ast.UnaryExpr{
+					op: .mul
+					left: ast.BinaryExpr{
+						op: .plus
+						left: node
+						right: expr
+					}
+				}
 			}
 			.lpar {
 				p.next()
+				println('hoge')
+				mut args := []ast.Expr{}
+				for p.tok.kind != .rpar {
+					args << p.assign()
+					if p.tok.kind != .comma {
+						break
+					}
+					p.next()
+					if p.tok.kind == .rpar {
+						p.token_err('Expected expression')
+					}
+				}
+				p.check(.rpar)
+				p.next()
+				node = ast.CallExpr{
+					left:node
+					args:args
+				}
 			}
 			.dot {
 				p.next()
@@ -292,12 +322,14 @@ fn (mut p Parser) postfix() ast.Expr {
 fn (mut p Parser) primary() ast.Expr {
 	match p.tok.kind {
 		.lpar {
+			p.next()
 			node := p.expr()
 			p.check(.rpar)
 			p.next()
 			return node
 		}
 		.ident {
+			println('ident')
 			name := p.tok.str
 			p.next()
 			return ast.GvarLiteral{name: name} //TODO distinguish ident

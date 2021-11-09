@@ -135,7 +135,7 @@ fn (mut p Parser) stmt() ast.Stmt {
 					extend := p.read_type_extend(base_typ)[0] or {break}
 					if p.tok.kind == .assign {
 						p.next()
-						p.expr()
+						expr := p.expr()
 					}
 					if p.tok.kind == .semi {
 						break
@@ -148,7 +148,6 @@ fn (mut p Parser) stmt() ast.Stmt {
 				p.next()
 				return ast.DeclStmt{decls:[]}
 			} else {
-				p.next()
 				expr := p.expr()
 				p.check(.semi)
 				p.next()
