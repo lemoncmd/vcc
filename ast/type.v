@@ -1,33 +1,33 @@
 module ast
 
-pub type Type = Pointer | Array | Function | BaseType
+pub type Type = Array | BaseType | Function | Pointer
 
 pub struct Pointer {
 pub mut:
 	number int
-	base Type
+	base   Type
 }
 
 pub struct Array {
 pub mut:
 	number int
-	base Type
+	base   Type
 }
 
 pub struct Function {
 pub mut:
-	args []FuncArgs
-	base Type
+	args          []FuncArgs
+	base          Type
 	is_extensible bool
 }
 
 pub struct FuncArgs {
 mut:
 	name string
-	typ Type
+	typ  Type
 }
 
-pub type BaseType = Numerical | Struct | Union | Enum
+pub type BaseType = Enum | Numerical | Struct | Union
 
 pub enum Numerical {
 	void

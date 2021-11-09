@@ -42,7 +42,9 @@ fn (mut p Parser) stmt() ast.Stmt {
 	match p.tok.kind {
 		.k_return {
 			p.next()
-			node := ast.ReturnStmt{expr: p.expr()}
+			node := ast.ReturnStmt{
+				expr: p.expr()
+			}
 			p.check(.semi)
 			p.next()
 			return node
@@ -57,7 +59,9 @@ fn (mut p Parser) stmt() ast.Stmt {
 				stmts << p.stmt()
 			}
 			p.next()
-			return ast.BlockStmt{stmts:stmts}
+			return ast.BlockStmt{
+				stmts: stmts
+			}
 		}
 		.k_if {
 			p.next()
@@ -132,7 +136,7 @@ fn (mut p Parser) stmt() ast.Stmt {
 			if p.tok.kind.is_keyword() {
 				base_typ := p.read_base_type()
 				for {
-					extend := p.read_type_extend(base_typ)[0] or {break}
+					extend := p.read_type_extend(base_typ)[0] or { break }
 					if p.tok.kind == .assign {
 						p.next()
 						expr := p.expr()
@@ -146,12 +150,16 @@ fn (mut p Parser) stmt() ast.Stmt {
 				}
 				p.check(.semi)
 				p.next()
-				return ast.DeclStmt{decls:[]}
+				return ast.DeclStmt{
+					decls: []
+				}
 			} else {
 				expr := p.expr()
 				p.check(.semi)
 				p.next()
-				return ast.ExprStmt{expr: expr}
+				return ast.ExprStmt{
+					expr: expr
+				}
 			}
 		}
 	}

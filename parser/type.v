@@ -3,7 +3,7 @@ module parser
 import ast
 
 struct DeclPair {
-	typ ast.Type
+	typ  ast.Type
 	name string
 }
 
@@ -34,10 +34,13 @@ fn (mut p Parser) read_type_extend(base ast.BaseType, params RTEParams) []DeclPa
 					typ_out.base = typ
 					typ = typ_out
 				}
-				else{}
+				else {}
 			}
 		}
-		pairs << DeclPair{typ:typ, name:name}
+		pairs << DeclPair{
+			typ: typ
+			name: name
+		}
 		if params.consume_comma && p.tok.kind == .comma {
 			p.next()
 		} else {
@@ -74,20 +77,26 @@ fn (mut p Parser) read_type_internal() ([]ast.Type, string) {
 			}
 			.lcbr {
 				p.next()
-				//TODO const expr
-				number := if p.tok.kind == .num {
-					p.tok.str.int()
-				} else {-1}
-				if p.tok.kind == .num { p.next() }
+				// TODO const expr
+				number := if p.tok.kind == .num { p.tok.str.int() } else { -1 }
+				if p.tok.kind == .num {
+					p.next()
+				}
 				p.check(.rcbr)
 				p.next()
-				types << ast.Array{number:number}
+				types << ast.Array{
+					number: number
+				}
 			}
-			else {break}
+			else {
+				break
+			}
 		}
 	}
 	if pointer > 0 {
-		types << ast.Array{number:pointer}
+		types << ast.Array{
+			number: pointer
+		}
 	}
 	return types, name
 }
@@ -117,14 +126,19 @@ fn (mut p Parser) read_type_function() ast.Function {
 	}
 	p.check(.rpar)
 	p.next()
-	return ast.Function{args: args, is_extensible: is_extensible}
+	return ast.Function{
+		args: args
+		is_extensible: is_extensible
+	}
 }
 
 enum BaseType4Read {
 	non
 	int
 	char
-} // will be float and double
+}
+
+// will be float and double
 
 fn (mut p Parser) read_base_type() ast.BaseType {
 	mut long := 0
@@ -146,12 +160,22 @@ fn (mut p Parser) read_base_type() ast.BaseType {
 				}
 				base_typ = .char
 			}
-			.k_long { long++ }
-			.k_short { short++ }
-			.k_signed { signed++ }
-			.k_unsigned { unsigned++ }
+			.k_long {
+				long++
+			}
+			.k_short {
+				short++
+			}
+			.k_signed {
+				signed++
+			}
+			.k_unsigned {
+				unsigned++
+			}
 			.k_const {}
-			else {break}
+			else {
+				break
+			}
 		}
 		p.next()
 	}

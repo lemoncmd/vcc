@@ -301,15 +301,32 @@ fn (mut p Parser) postfix() ast.Expr {
 				p.check(.rpar)
 				p.next()
 				node = ast.CallExpr{
-					left:node
-					args:args
+					left: node
+					args: args
 				}
 			}
 			.dot {
 				p.next()
+				p.check(.ident)
+				name := p.tok.str
+				p.next()
+				return ast.SelectorExpr{
+					left: node
+					field: name
+				}
 			}
 			.arrow {
 				p.next()
+				p.check(.ident)
+				name := p.tok.str
+				p.next()
+				return ast.UnaryExpr{
+					op: .mul
+					left: ast.SelectorExpr{
+						left: node
+						field: name
+					}
+				}
 			}
 			else {
 				break
@@ -332,17 +349,23 @@ fn (mut p Parser) primary() ast.Expr {
 			println('ident')
 			name := p.tok.str
 			p.next()
-			return ast.GvarLiteral{name: name} //TODO distinguish ident
+			return ast.GvarLiteral{
+				name: name
+			} // TODO distinguish ident
 		}
 		.num {
 			val := p.tok.str.u64()
 			p.next()
-			return ast.IntegerLiteral{val: val}
+			return ast.IntegerLiteral{
+				val: val
+			}
 		}
 		.str {
 			str := p.tok.str
 			p.next()
-			return ast.StringLiteral{val: str}
+			return ast.StringLiteral{
+				val: str
+			}
 		}
 		else {
 			p.token_err('Expected primary')
@@ -350,4 +373,3 @@ fn (mut p Parser) primary() ast.Expr {
 		}
 	}
 }
-

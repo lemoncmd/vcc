@@ -18,9 +18,9 @@ fn main() {
 	}
 	mut p := &parser.Parser{
 		program: program
-		tokens:tokens
-		pos:-1
-		tok:tokens[0]
+		tokens: tokens
+		pos: -1
+		tok: tokens[0]
 	}
 	p.top()
 }

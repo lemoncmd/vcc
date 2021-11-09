@@ -3,7 +3,7 @@ module ast
 import token
 
 pub struct FunctionDecl {
-	typ Type
+	typ  Type
 	body BlockStmt
 }
 
@@ -25,17 +25,17 @@ pub type Stmt = BlockStmt
 
 pub type Expr = BinaryExpr
 	| CallExpr
+	| CastExpr
 	| CrementExpr
 	| FloatLiteral
 	| GvarLiteral
 	| IntegerLiteral
 	| LvarLiteral
 	| SelectorExpr
+	| SizeofExpr
 	| StringLiteral
 	| TernaryExpr
 	| UnaryExpr
-	| SizeofExpr
-	| CastExpr
 
 pub struct IfStmt {
 pub:
@@ -118,7 +118,7 @@ pub:
 
 pub struct Decl {
 pub:
-	typ Type
+	typ  Type
 	name string
 }
 
@@ -186,9 +186,9 @@ pub:
 	name string
 }
 
-pub type SizeofExpr = Type | Expr
+pub type SizeofExpr = Expr | Type
 
 pub struct CastExpr {
-	typ Type
+	typ  Type
 	left Expr
 }

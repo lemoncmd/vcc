@@ -59,7 +59,7 @@ fn (s &Scanner) read(num int) string {
 
 pub fn (mut s Scanner) skip_delimiter() {
 	for {
-		c := s.program[s.pos] or {return}
+		c := s.program[s.pos] or { return }
 		len := s.program.len
 
 		if c == `\n` {
@@ -173,7 +173,7 @@ pub fn (mut s Scanner) scan() token.Token {
 	}
 
 	skips = 1
-	c := s.program[s.pos] or {return s.end_of_file()}
+	c := s.program[s.pos] or { return s.end_of_file() }
 	match c {
 		`+` {
 			return s.create_token(.plus, '+')
