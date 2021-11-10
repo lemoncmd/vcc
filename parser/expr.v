@@ -225,7 +225,7 @@ fn (mut p Parser) mul() ast.Expr {
 }
 
 fn (mut p Parser) cast() ast.Expr {
-	mut node := p.unary()
+	mut node := p.unary() // TODO cast
 	return node
 }
 
@@ -233,6 +233,21 @@ fn (mut p Parser) unary() ast.Expr {
 	op := p.tok.kind
 	match op {
 		.k_sizeof {
+			p.next()
+			if p.tok.kind == .lpar {
+				p.next()
+				if p.tok.kind.is_keyword() { // TODO is type
+					typ := p.read_type_extend(p.read_base_type())[0]
+					p.check(.rpar)
+					p.next()
+					return ast.SizeofExpr(typ.typ)
+				} else {
+					expr := p.expr()
+					p.check(.rpar)
+					p.next()
+					return ast.SizeofExpr(expr)
+				}
+			}
 			return ast.SizeofExpr(p.unary())
 		}
 		.mul, .aand, .plus, .minus, .anot, .lnot {

@@ -27,7 +27,7 @@ mut:
 	typ  Type
 }
 
-pub type BaseType = Enum | Numerical | Struct | Union
+pub type BaseType = Deftype | Enum | Numerical | Struct | Union
 
 pub enum Numerical {
 	void
@@ -42,11 +42,66 @@ pub enum Numerical {
 	ulong
 	longlong
 	ulonglong
+	float
+	double
+	ldouble
 	bool
+	floatc
+	doublec
+	ldoublec
 }
 
-pub struct Struct {}
+pub struct Struct {
+	name string
+pub mut:
+	table &StructTable
+}
 
-pub struct Union {}
+pub struct Union {
+	name string
+pub mut:
+	table &StructTable
+}
+
+[heap]
+pub struct StructTable {
+pub mut:
+	defined bool
+	fields  []Field
+}
+
+pub struct Field {
+	name string
+	typ  Type
+}
 
 pub struct Enum {}
+
+pub struct Deftype {
+pub:
+	name string
+}
+
+pub fn (t Type) is_complete_type() bool {
+	return match t {
+		Pointer {
+			true
+		}
+		BaseType {
+			match t {
+				Numerical {
+					t != .void
+				}
+				else {
+					false
+				}
+			}
+		}
+		Array {
+			t.number >= 0
+		}
+		Function {
+			true
+		}
+	}
+}

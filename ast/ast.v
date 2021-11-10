@@ -12,6 +12,7 @@ pub type Stmt = BlockStmt
 	| CaseStmt
 	| ContinueStmt
 	| DeclStmt
+	| DefaultStmt
 	| DoStmt
 	| EmptyStmt
 	| ExprStmt
@@ -66,13 +67,22 @@ pub:
 
 pub struct SwitchStmt {
 pub:
-	cases []CaseStmt
-	stmt  BlockStmt
+	cond Expr
+pub mut:
+	cases []CaseOrDefault
+	stmt  Stmt
 }
 
 pub struct LabelStmt {
 pub:
 	name string
+	stmt Stmt
+}
+
+pub type CaseOrDefault = CaseStmt | DefaultStmt
+
+pub struct DefaultStmt {
+pub:
 	stmt Stmt
 }
 
