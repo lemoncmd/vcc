@@ -5,7 +5,7 @@ import token
 import parser
 
 fn main() {
-	program := 'int main(int argc, int*argv[]) {printf("%d\\n", argc);}'
+	program := ''
 	mut s := &scanner.Scanner{program, 0, 1, 0}
 	mut tokens := []token.Token{}
 	for {
@@ -19,7 +19,7 @@ fn main() {
 	mut p := &parser.Parser{
 		program: program
 		tokens: tokens
-		pos: -1
+		pos: 0
 		tok: tokens[0]
 	}
 	p.top()

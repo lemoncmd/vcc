@@ -202,3 +202,5 @@ pub struct CastExpr {
 	typ  Type
 	left Expr
 }
+
+pub type Init = Expr | []Init

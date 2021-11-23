@@ -183,7 +183,7 @@ fn (mut p Parser) stmt() ast.Stmt {
 		}
 		.k_case {
 			p.next()
-			cond := p.expr()
+			cond := p.ternary()
 			p.check(.colon)
 			p.next()
 			if p.switchs.len == 0 {
