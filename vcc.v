@@ -5,12 +5,12 @@ import token
 import parser
 
 fn main() {
-	program := ''
+	program := 'int main() { int a; for(a=0; a<10; a++) { println("%d", a); } }'
 	mut s := &scanner.Scanner{program, 0, 1, 0}
 	mut tokens := []token.Token{}
 	for {
 		token := s.scan()
-		println(token)
+		// println(token)
 		tokens << token
 		if token.kind == .eof {
 			break

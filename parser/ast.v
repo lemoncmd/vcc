@@ -24,7 +24,7 @@ pub fn (mut p Parser) top() {
 			}
 		}
 	}
-	println(p.funs)
+	// println(p.funs)
 }
 
 fn (mut p Parser) function(typ ast.Type) ast.FunctionDecl {
@@ -56,7 +56,7 @@ fn (mut p Parser) stmt() ast.Stmt {
 				if p.tok.kind == .eof {
 					p.token_err('Expected `}`')
 				}
-				stmts << if p.tok.kind.is_keyword() { p.declaration() } else { p.stmt() }
+				stmts << if p.tok.kind.is_type_keyword() { p.declaration() } else { p.stmt() } // TODO type def
 			}
 			p.next()
 			return ast.BlockStmt{
@@ -87,7 +87,7 @@ fn (mut p Parser) stmt() ast.Stmt {
 			p.check(.lpar)
 			p.next()
 			mut first := ast.Stmt(ast.EmptyStmt{})
-			if p.tok.kind.is_keyword() { // TODO definition
+			if p.tok.kind.is_type_keyword() { // TODO definition
 				typ := p.read_type_extend(p.read_base_type())[0]
 			} else if p.tok.kind != .semi {
 				first = ast.ExprStmt{

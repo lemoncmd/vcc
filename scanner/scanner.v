@@ -14,7 +14,7 @@ mut:
 fn (s &Scanner) error(str string) {
 	program := s.program.split_into_lines()[s.line - 1]
 	here := [' '].repeat(s.lpos).join('')
-	println('$s.line:$s.lpos: $str\n$program\n$here^here')
+	eprintln('$s.line:$s.lpos: $str\n$program\n$here^here')
 	exit(1)
 }
 
@@ -128,15 +128,6 @@ pub fn (s &Scanner) end_of_file() token.Token {
 pub fn (mut s Scanner) scan() token.Token {
 	s.skip_delimiter()
 
-	for i, res in token.reserves {
-		if s.is_token_string(res) {
-			kind := token.Kind(i + int(token.Kind.k_bool))
-			token := s.create_token(kind, res)
-			s.skip(res.len)
-			return token
-		}
-	}
-
 	mut skips := 3
 	defer {
 		s.skip(skips)
@@ -169,6 +160,10 @@ pub fn (mut s Scanner) scan() token.Token {
 		'&=' { return s.create_token(.an_assign, '&=') }
 		'|=' { return s.create_token(.or_assign, '|=') }
 		'^=' { return s.create_token(.xo_assign, '^=') }
+		'<%' { return s.create_token(.lsbr, '{') }
+		'%>' { return s.create_token(.rsbr, '}') }
+		'<:' { return s.create_token(.lcbr, '[') }
+		':>' { return s.create_token(.rcbr, ']') }
 		else {}
 	}
 
@@ -261,7 +256,28 @@ pub fn (mut s Scanner) scan() token.Token {
 				return s.scan_number()
 			}
 			if c.is_letter() || c == `_` {
-				return s.scan_ident()
+				ident := s.scan_ident()
+				for i, res in token.reserves {
+					if res == ident.str {
+						kind := token.Kind(i + int(token.Kind.k_alignas))
+						token := s.create_token(kind, res)
+						return token
+					}
+				}
+				if ident.str in ['u8', 'u', 'U', 'L'] {
+					if cc := s.program[s.pos] {
+						match cc {
+							`"` {
+								return s.scan_string()
+							}
+							`'` {
+								return s.scan_char()
+							}
+							else {}
+						} // TODO: encode
+					}
+				}
+				return ident
 			}
 		}
 	}
@@ -269,7 +285,7 @@ pub fn (mut s Scanner) scan() token.Token {
 	return s.end_of_file()
 }
 
-fn (mut s Scanner) scan_string() token.Token {
+fn (mut s Scanner) scan_string() token.Token { // TODO: concat string literal
 	s.next()
 	start_pos := s.pos
 	for s.program[s.pos] != `"` {

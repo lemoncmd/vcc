@@ -273,7 +273,7 @@ fn (mut p Parser) unary() ast.Expr {
 
 fn (mut p Parser) postfix() ast.Expr {
 	mut node := p.primary()
-	println(node)
+	// println(node)
 	for {
 		op := p.tok.kind
 		match op {
@@ -301,7 +301,6 @@ fn (mut p Parser) postfix() ast.Expr {
 			}
 			.lpar {
 				p.next()
-				println('hoge')
 				mut args := []ast.Expr{}
 				for p.tok.kind != .rpar {
 					args << p.assign()
@@ -361,7 +360,6 @@ fn (mut p Parser) primary() ast.Expr {
 			return node
 		}
 		.ident {
-			println('ident')
 			name := p.tok.str
 			p.next()
 			return ast.GvarLiteral{

@@ -59,9 +59,16 @@ pub enum Kind {
 	rpar
 	lsbr
 	rsbr
+	k_alignas
+	k_atomic
 	k_bool
 	k_complex
+	k_generic
 	k_imaginary
+	k_noreturn
+	k_static_assert
+	k_thread_local
+	k_alignof
 	k_auto
 	k_break
 	k_case
@@ -84,9 +91,9 @@ pub enum Kind {
 	k_register
 	k_restrict
 	k_return
+	k_short
 	k_signed
 	k_sizeof
-	k_short
 	k_static
 	k_struct
 	k_switch
@@ -145,14 +152,21 @@ pub fn (k Kind) str() string {
 		.ls_assign { '`<<=`' }
 		.rs_assign { '`>>=`' }
 		.lcbr { '`[`' }
-		.rcbr { '`[`' }
-		.lpar { '`[`' }
-		.rpar { '`[`' }
-		.lsbr { '`[`' }
-		.rsbr { '`[`' }
+		.rcbr { '`]`' }
+		.lpar { '`(`' }
+		.rpar { '`)`' }
+		.lsbr { '`{`' }
+		.rsbr { '`}`' }
+		.k_alignas { '`_Alignas`' }
+		.k_atomic { '`_Atomic`' }
 		.k_bool { '`_Bool`' }
 		.k_complex { '`_Complex`' }
+		.k_generic { '`_Generic`' }
 		.k_imaginary { '`_Imaginary`' }
+		.k_noreturn { '`_Noreturn`' }
+		.k_static_assert { '`_Static_assert`' }
+		.k_thread_local { '`_Thread_local`' }
+		.k_alignof { '`alignof`' }
 		.k_auto { '`auto`' }
 		.k_break { '`break`' }
 		.k_case { '`case`' }
@@ -175,9 +189,9 @@ pub fn (k Kind) str() string {
 		.k_register { '`register`' }
 		.k_restrict { '`restrict`' }
 		.k_return { '`return`' }
+		.k_short { '`short`' }
 		.k_signed { '`signed`' }
 		.k_sizeof { '`signed`' }
-		.k_short { '`short`' }
 		.k_static { '`static`' }
 		.k_struct { '`struct`' }
 		.k_switch { '`switch`' }
@@ -197,14 +211,27 @@ pub fn (k Kind) is_assign() bool {
 
 [inline]
 pub fn (k Kind) is_keyword() bool {
-	return int(k) >= int(Kind.k_bool)
+	return int(k) >= int(Kind.k_alignas)
+}
+
+[inline]
+pub fn (k Kind) is_type_keyword() bool {
+	return k in [.k_char, .k_const, .k_double, .k_enum, .k_float, .k_int, .k_long, .k_short,
+		.k_signed, .k_struct, .k_union, .k_unsigned, .k_void, .k_bool, .k_complex, .k_imaginary]
 }
 
 pub const (
 	reserves = [
+		'_Alignas',
+		'_Atomic',
 		'_Bool',
 		'_Complex',
+		'_Generic',
 		'_Imaginary',
+		'_Noreturn',
+		'_Static_assert',
+		'_Thread_local',
+		'alignof',
 		'auto',
 		'break',
 		'case',
@@ -227,9 +254,9 @@ pub const (
 		'register',
 		'restrict',
 		'return',
+		'short',
 		'signed',
 		'sizeof',
-		'short',
 		'static',
 		'struct',
 		'switch',
