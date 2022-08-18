@@ -3,6 +3,7 @@ module ast
 import token
 
 pub struct FunctionDecl {
+pub:
 	typ  Type
 	body BlockStmt
 }
@@ -51,6 +52,7 @@ pub:
 	cond  Expr
 	next  Expr
 	stmt  Stmt
+	table ScopeTable
 }
 
 pub struct WhileStmt {
@@ -111,6 +113,7 @@ pub:
 pub struct BlockStmt {
 pub:
 	stmts []Stmt
+	table ScopeTable
 }
 
 pub struct EmptyStmt {
@@ -188,7 +191,7 @@ pub:
 
 pub struct LvarLiteral {
 pub:
-	offset u64
+	name string
 }
 
 pub struct GvarLiteral {

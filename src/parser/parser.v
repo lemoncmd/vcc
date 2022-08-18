@@ -9,17 +9,11 @@ mut:
 	tokens  []token.Token
 	pos     int
 	tok     token.Token
-	funs    map[string]ast.FunctionDecl
 	switchs []ast.SwitchStmt
 	structs map[string]ast.Struct
 	unions  map[string]ast.Union
-	table   &BlockTable = &BlockTable{
-	parent: &BlockTable(0)
-}
-}
-
-struct BlockTable {
-	parent &BlockTable
+pub mut:
+	funs    map[string]ast.FunctionDecl
 }
 
 fn (mut p Parser) next() {

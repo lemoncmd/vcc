@@ -1,11 +1,13 @@
 module main
 
+import os
 import scanner
 import token
 import parser
+import gen.x8664
 
 fn main() {
-	program := 'int main() { int a; for(a=0; a<10; a++) { println("%d", a); } }'
+	program := os.read_file(os.args[1]) or { 'int main() {}' }
 	mut s := &scanner.Scanner{program, 0, 1, 0}
 	mut tokens := []token.Token{}
 	for {
@@ -23,4 +25,9 @@ fn main() {
 		tok: tokens[0]
 	}
 	p.top()
+	mut g := x8664.Gen{
+		funs: p.funs
+	}
+	g.gen()
+	println(g.out.str())
 }

@@ -11,7 +11,7 @@ pub fn (mut p Parser) top() {
 				if decls.len == 0 || decls[0].name == '' {
 					p.token_err('Expected identifier')
 				}
-				if decls.len > 1 || decls[0].typ !is ast.Function {
+				if decls.len > 1 || decls[0].typ.decls.last() !is ast.Function {
 					p.token_err('Expected `;` after top level declaration')
 				}
 				p.funs[decls[0].name] = p.function(decls[0].typ)

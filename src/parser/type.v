@@ -16,28 +16,9 @@ struct RTEParams {
 fn (mut p Parser) read_type_extend(base ast.BaseType, params RTEParams) []DeclPair {
 	mut pairs := []DeclPair{}
 	for {
-		mut typ := ast.Type(base)
+		mut typ := ast.Type{base: base}
 		mut types, name := p.read_type_internal()
-		for typ_out_ in types {
-			match typ_out_ {
-				ast.Pointer {
-					mut typ_out := typ_out_
-					typ_out.base = typ
-					typ = typ_out
-				}
-				ast.Array {
-					mut typ_out := typ_out_
-					typ_out.base = typ
-					typ = typ_out
-				}
-				ast.Function {
-					mut typ_out := typ_out_
-					typ_out.base = typ
-					typ = typ_out
-				}
-				else {}
-			}
-		}
+		typ.decls << types
 		pairs << DeclPair{
 			typ: typ
 			name: name
@@ -51,12 +32,17 @@ fn (mut p Parser) read_type_extend(base ast.BaseType, params RTEParams) []DeclPa
 	return pairs
 }
 
-fn (mut p Parser) read_type_internal() ([]ast.Type, string) {
-	mut types := []ast.Type{}
-	mut pointer := 0
+fn (mut p Parser) read_type_internal() ([]ast.Declarator, string) {
+	mut types := []ast.Declarator{}
 	for p.tok.kind == .mul {
-		pointer++
 		p.next()
+		is_const := p.tok.kind == .k_const
+		types << ast.Pointer {
+			is_const: is_const
+		}
+		if is_const {
+			p.next()
+		}
 	}
 	mut name := ''
 	if p.tok.kind == .lpar {
@@ -109,11 +95,6 @@ fn (mut p Parser) read_type_internal() ([]ast.Type, string) {
 			else {
 				break
 			}
-		}
-	}
-	if pointer > 0 {
-		types << ast.Array{
-			number: pointer
 		}
 	}
 	return types, name
@@ -440,7 +421,7 @@ fn (mut p Parser) read_struct_type() ast.BaseType {
 			if !decl.typ.is_complete_type() {
 				p.token_err('Cannot use incomplete type as struct field')
 			}
-			if decl.typ is ast.Function {
+			if decl.typ.decls.last() is ast.Function {
 				p.token_err('Cannot use function as struct field')
 			}
 			table.fields << ast.Field{
@@ -464,12 +445,12 @@ fn (mut p Parser) read_struct_type() ast.BaseType {
 // TODO
 fn (mut p Parser) read_enum_type() ast.BaseType {
 	p.next()
-	name := if p.tok.kind == .ident {
+	/*name := if p.tok.kind == .ident {
 		str := p.tok.str
 		p.next()
 		str
 	} else {
 		''
-	}
+	}*/
 	return ast.Enum{}
 }

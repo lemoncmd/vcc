@@ -1,0 +1,4 @@
+module ast
+
+struct ScopeTable {}
+

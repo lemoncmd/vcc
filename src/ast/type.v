@@ -1,23 +1,48 @@
 module ast
 
-pub type Type = Array | BaseType | Function | Pointer
+pub struct Type {
+pub mut:
+	base BaseType
+	decls []Declarator
+}
+
+pub struct TypeIter {
+	typ Type
+mut:
+	count int
+}
+
+pub fn (t Type) iter() TypeIter {
+	return TypeIter{
+		typ: t
+		count: t.decls.len
+	}
+}
+
+pub fn (mut i TypeIter) next() ?Declarator {
+	i.count--
+	if i.count < 0 {
+		return none
+	}
+	return i.typ.decls[i.count]
+}
+
+
+pub type Declarator = Array | Function | Pointer
 
 pub struct Pointer {
 pub mut:
-	number int
-	base   Type
+	is_const bool
 }
 
 pub struct Array {
 pub mut:
 	number int
-	base   Type
 }
 
 pub struct Function {
 pub mut:
 	args          []FuncArgs
-	base          Type
 	is_extensible bool
 }
 
@@ -83,25 +108,25 @@ pub:
 }
 
 pub fn (t Type) is_complete_type() bool {
-	return match t {
-		Pointer {
-			true
-		}
-		BaseType {
-			match t {
-				Numerical {
-					t != .void
-				}
-				else {
-					false
-				}
+	for d in t.iter() {
+		return match d {
+			Pointer{
+				true
+			}
+			Array {
+				d.number >= 0
+			}
+			Function {
+				true
 			}
 		}
-		Array {
-			t.number >= 0
+	}
+	return match t.base {
+		Numerical {
+			t.base != .void
 		}
-		Function {
-			true
+		else {
+			false
 		}
 	}
 }
