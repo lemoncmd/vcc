@@ -9,6 +9,7 @@ mut:
 	curfn_name  string
 	curfn_scope []ast.ScopeTable
 	curscope    int = -1
+	labelid int
 pub mut:
 	out strings.Builder
 }
@@ -27,6 +28,11 @@ pub fn (g Gen) find_lvar(name string) (ast.Type, ast.Storage, int) {
 		scopeid = scope.parent
 	}
 	panic('Cannot find lvar in gen')
+}
+
+pub fn (mut g Gen) get_label() int {
+	g.labelid++
+	return g.labelid
 }
 
 pub fn (mut g Gen) gen() {
@@ -64,6 +70,24 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 				g.gen_stmt(s)
 			}
 			g.curscope = parent
+		}
+		ast.IfStmt {
+			label := g.get_label()
+			has_else := stmt.else_stmt !is ast.EmptyStmt
+			g.gen_expr(stmt.cond)
+			g.writeln('  test rax, rax')
+			if has_else {
+				g.writeln('  je .L.ifelse.$label')
+			} else {
+				g.writeln('  je .L.ifend.$label')
+			}
+			g.gen_stmt(stmt.stmt)
+			if has_else {
+				g.writeln('  jmp .L.ifend.$label')
+				g.writeln('.L.ifelse.$label:')
+				g.gen_stmt(stmt.else_stmt)
+			}
+			g.writeln('.L.ifend.$label:')
 		}
 		ast.ForStmt {
 			match stmt.first {
