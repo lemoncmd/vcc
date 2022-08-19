@@ -3,6 +3,7 @@ module ast
 pub struct Type {
 pub mut:
 	base BaseType
+	qual Qualifier
 	decls []Declarator
 }
 
@@ -27,6 +28,21 @@ pub fn (mut i TypeIter) next() ?Declarator {
 	return i.typ.decls[i.count]
 }
 
+pub enum Storage {
+	default
+	auto
+	register
+	@static
+	extern
+	typedef
+}
+
+pub struct Qualifier {
+pub mut:
+	is_const bool
+	is_volatile bool
+	is_restrict bool
+}
 
 pub type Declarator = Array | Function | Pointer
 

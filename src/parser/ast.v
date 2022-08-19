@@ -4,8 +4,8 @@ import ast
 
 pub fn (mut p Parser) top() {
 	for p.tok.kind != .eof {
-		base_typ := p.read_base_type()
-		decls := p.read_type_extend(base_typ, consume_comma: true)
+		base_typ, storage := p.read_base_type()
+		decls := p.read_type_extend(base_typ, storage, consume_comma: true)
 		match p.tok.kind {
 			.lsbr {
 				if decls.len == 0 || decls[0].name == '' {
@@ -13,6 +13,9 @@ pub fn (mut p Parser) top() {
 				}
 				if decls.len > 1 || decls[0].typ.decls.last() !is ast.Function {
 					p.token_err('Expected `;` after top level declaration')
+				}
+				if decls[0].storage != .default {
+					p.token_err('Illegal storage class specifier')
 				}
 				p.funs[decls[0].name] = p.function(decls[0].typ)
 			}
@@ -28,13 +31,16 @@ pub fn (mut p Parser) top() {
 }
 
 fn (mut p Parser) function(typ ast.Type) ast.FunctionDecl {
+	p.curscopes = []ast.ScopeTable{}
 	body := p.stmt()
 	if body !is ast.BlockStmt {
 		p.token_err('Expected Block')
 	}
+	p.curscope = -1
 	return ast.FunctionDecl{
 		typ: typ
 		body: body as ast.BlockStmt
+		scopes: p.curscopes
 	}
 }
 
@@ -51,6 +57,12 @@ fn (mut p Parser) stmt() ast.Stmt {
 		}
 		.lsbr {
 			p.next()
+			scopeid := p.curscopes.len
+			parent_scopeid := p.curscope
+			p.curscopes << ast.ScopeTable{
+				parent: parent_scopeid
+			}
+			p.curscope = scopeid
 			mut stmts := []ast.Stmt{}
 			for p.tok.kind != .rsbr {
 				if p.tok.kind == .eof {
@@ -59,8 +71,10 @@ fn (mut p Parser) stmt() ast.Stmt {
 				stmts << if p.tok.kind.is_type_keyword() { p.declaration() } else { p.stmt() } // TODO type def
 			}
 			p.next()
+			p.curscope = parent_scopeid
 			return ast.BlockStmt{
 				stmts: stmts
+				id: scopeid
 			}
 		}
 		.k_if {
@@ -88,7 +102,8 @@ fn (mut p Parser) stmt() ast.Stmt {
 			p.next()
 			mut first := ast.Stmt(ast.EmptyStmt{})
 			if p.tok.kind.is_type_keyword() { // TODO definition
-				typ := p.read_type_extend(p.read_base_type())[0]
+				base, storage := p.read_base_type()
+				typ := p.read_type_extend(base, storage)[0]
 			} else if p.tok.kind != .semi {
 				first = ast.ExprStmt{
 					expr: p.expr()
@@ -239,9 +254,12 @@ fn (mut p Parser) stmt() ast.Stmt {
 }
 
 fn (mut p Parser) declaration() ast.Stmt {
-	base_typ := p.read_base_type()
+	base_typ, storage := p.read_base_type()
 	for {
-		extend := p.read_type_extend(base_typ)[0] or { break }
+		// TODO storage class
+		extend := p.read_type_extend(base_typ, storage)[0] or { break }
+		p.curscopes[p.curscope].types[extend.name] = extend.typ
+		p.curscopes[p.curscope].storages[extend.name] = extend.storage
 		if p.tok.kind == .assign {
 			p.next()
 			expr := p.expr()

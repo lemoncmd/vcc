@@ -12,6 +12,8 @@ mut:
 	switchs []ast.SwitchStmt
 	structs map[string]ast.Struct
 	unions  map[string]ast.Union
+	curscope int = -1
+	curscopes []ast.ScopeTable
 pub mut:
 	funs    map[string]ast.FunctionDecl
 }

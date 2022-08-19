@@ -6,6 +6,7 @@ pub struct FunctionDecl {
 pub:
 	typ  Type
 	body BlockStmt
+	scopes []ScopeTable
 }
 
 pub type Stmt = BlockStmt
@@ -113,7 +114,7 @@ pub:
 pub struct BlockStmt {
 pub:
 	stmts []Stmt
-	table ScopeTable
+	id int
 }
 
 pub struct EmptyStmt {

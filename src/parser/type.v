@@ -5,6 +5,7 @@ import token
 
 struct DeclPair {
 	typ  ast.Type
+	storage ast.Storage
 	name string
 }
 
@@ -13,10 +14,11 @@ struct RTEParams {
 	consume_comma bool
 }
 
-fn (mut p Parser) read_type_extend(base ast.BaseType, params RTEParams) []DeclPair {
+fn (mut p Parser) read_type_extend(base ast.Type, storage ast.Storage, params RTEParams) []DeclPair {
 	mut pairs := []DeclPair{}
 	for {
-		mut typ := ast.Type{base: base}
+		mut typ := base
+		typ.decls = []ast.Declarator{}
 		mut types, name := p.read_type_internal()
 		typ.decls << types
 		pairs << DeclPair{
@@ -34,6 +36,8 @@ fn (mut p Parser) read_type_extend(base ast.BaseType, params RTEParams) []DeclPa
 
 fn (mut p Parser) read_type_internal() ([]ast.Declarator, string) {
 	mut types := []ast.Declarator{}
+	mut types_back := []ast.Declarator{}
+	mut types_internal := []ast.Declarator{}
 	for p.tok.kind == .mul {
 		p.next()
 		is_const := p.tok.kind == .k_const
@@ -48,9 +52,9 @@ fn (mut p Parser) read_type_internal() ([]ast.Declarator, string) {
 	if p.tok.kind == .lpar {
 		p.next()
 		if p.tok.kind.is_keyword() || p.tok.kind == .rpar {
-			types << p.read_type_function()
+			types_back << p.read_type_function()
 		} else {
-			types, name = p.read_type_internal()
+			types_internal, name = p.read_type_internal()
 		}
 	} else if p.tok.kind == .ident {
 		name = p.tok.str
@@ -60,7 +64,7 @@ fn (mut p Parser) read_type_internal() ([]ast.Declarator, string) {
 		match p.tok.kind {
 			.lpar {
 				p.next()
-				types << p.read_type_function()
+				types_back << p.read_type_function()
 			}
 			.lcbr {
 				p.next()
@@ -69,6 +73,7 @@ fn (mut p Parser) read_type_internal() ([]ast.Declarator, string) {
 					p.next()
 				}
 				for (p.tok.kind in [.k_const, .k_restrict, .k_volatile]) {
+					// TODO
 					p.next()
 				}
 				if !stat && p.tok.kind == .k_static {
@@ -88,7 +93,7 @@ fn (mut p Parser) read_type_internal() ([]ast.Declarator, string) {
 				}
 				p.check(.rcbr)
 				p.next()
-				types << ast.Array{
+				types_back << ast.Array{
 					number: number
 				}
 			}
@@ -97,6 +102,8 @@ fn (mut p Parser) read_type_internal() ([]ast.Declarator, string) {
 			}
 		}
 	}
+	types << types_back.reverse()
+	types << types_internal
 	return types, name
 }
 
@@ -110,7 +117,11 @@ fn (mut p Parser) read_type_function() ast.Function {
 		} else {
 			is_extensible = false
 		}
-		decl := p.read_type_extend(p.read_base_type())[0]
+		base, storage := p.read_base_type()
+		if storage !in [.default, .register] {
+			p.token_err('Invalid storage class specifier')
+		}
+		decl := p.read_type_extend(base, storage)[0]
 		args << ast.FuncArgs{
 			name: decl.name
 			typ: decl.typ
@@ -175,39 +186,193 @@ fn (p Parser) adjective_err(base BaseType4Read, long int, short int, signed int,
 	for {}
 }
 
-fn (mut p Parser) read_base_type() ast.BaseType {
+fn (mut p Parser) read_base_type() (ast.Type, ast.Storage) {
 	mut long := 0
 	mut short := 0
 	mut signed := 0
 	mut unsigned := 0
 	mut complex := 0
+	mut qual := ast.Qualifier{
+	}
+	mut storage := ast.Storage.default
 	mut base_typ := BaseType4Read.non
-	for (p.tok.kind in [.k_const, .k_restrict, .k_volatile]) {
+	for (p.tok.kind in [.k_const, .k_restrict, .k_volatile, .k_auto, .k_register, .k_static, .k_extern, .k_typedef]) {
+		match p.tok.kind {
+			.k_const { qual.is_const = true }
+			.k_restrict { qual.is_restrict = true }
+			.k_volatile { qual.is_volatile = true }
+			.k_auto {
+				if storage != .default || storage != .auto {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .auto
+			}
+			.k_register {
+				if storage != .default || storage != .register {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .register
+			}
+			.k_static {
+				if storage != .default || storage != .@static {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .@static
+			}
+			.k_extern {
+				if storage != .default || storage != .extern {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .extern
+			}
+			.k_typedef {
+				if storage != .default || storage != .typedef {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .typedef
+			}
+			else {}
+		}
 		p.next()
 	}
 	if p.tok.kind == .ident {
 		name := p.tok.str
-		for (p.tok.kind in [.k_const, .k_restrict, .k_volatile]) {
+		for (p.tok.kind in [.k_const, .k_restrict, .k_volatile, .k_auto, .k_register, .k_static, .k_extern, .k_typedef]) {
+			match p.tok.kind {
+				.k_const { qual.is_const = true }
+				.k_restrict { qual.is_restrict = true }
+				.k_volatile { qual.is_volatile = true }
+				.k_auto {
+					if storage != .default || storage != .auto {
+						p.token_err('Cannot combine with previous declaration specifier')
+					}
+					storage = .auto
+				}
+				.k_register {
+					if storage != .default || storage != .register {
+						p.token_err('Cannot combine with previous declaration specifier')
+					}
+					storage = .register
+				}
+				.k_static {
+					if storage != .default || storage != .@static {
+						p.token_err('Cannot combine with previous declaration specifier')
+					}
+					storage = .@static
+				}
+				.k_extern {
+					if storage != .default || storage != .extern {
+						p.token_err('Cannot combine with previous declaration specifier')
+					}
+					storage = .extern
+				}
+				.k_typedef {
+					if storage != .default || storage != .typedef {
+						p.token_err('Cannot combine with previous declaration specifier')
+					}
+					storage = .typedef
+				}
+				else {}
+			}
 			p.next()
 		}
-		return ast.Deftype{
-			name: name
-		}
+		return ast.Type{
+			base: ast.Deftype {name: name}
+			qual: qual
+		}, storage
 	}
 	// TODO struct def
 	if p.tok.kind in [.k_struct, .k_union] {
 		strc := p.read_struct_type()
-		for (p.tok.kind in [.k_const, .k_restrict, .k_volatile]) {
+		for (p.tok.kind in [.k_const, .k_restrict, .k_volatile, .k_auto, .k_register, .k_static, .k_extern, .k_typedef]) {
+			match p.tok.kind {
+				.k_const { qual.is_const = true }
+				.k_restrict { qual.is_restrict = true }
+				.k_volatile { qual.is_volatile = true }
+			.k_auto {
+				if storage != .default || storage != .auto {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .auto
+			}
+			.k_register {
+				if storage != .default || storage != .register {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .register
+			}
+			.k_static {
+				if storage != .default || storage != .@static {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .@static
+			}
+			.k_extern {
+				if storage != .default || storage != .extern {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .extern
+			}
+			.k_typedef {
+				if storage != .default || storage != .typedef {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .typedef
+			}
+				else {}
+			}
 			p.next()
 		}
-		return strc
+		return ast.Type{
+			base: strc
+			qual: qual
+		}, storage
 	}
 	if p.tok.kind == .k_enum {
 		enm := p.read_enum_type()
-		for (p.tok.kind in [.k_const, .k_restrict, .k_volatile]) {
+		for (p.tok.kind in [.k_const, .k_restrict, .k_volatile, .k_auto, .k_register, .k_static, .k_extern, .k_typedef]) {
+			match p.tok.kind {
+				.k_const { qual.is_const = true }
+				.k_restrict { qual.is_restrict = true }
+				.k_volatile { qual.is_volatile = true }
+			.k_auto {
+				if storage != .default || storage != .auto {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .auto
+			}
+			.k_register {
+				if storage != .default || storage != .register {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .register
+			}
+			.k_static {
+				if storage != .default || storage != .@static {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .@static
+			}
+			.k_extern {
+				if storage != .default || storage != .extern {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .extern
+			}
+			.k_typedef {
+				if storage != .default || storage != .typedef {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .typedef
+			}
+				else {}
+			}
 			p.next()
 		}
-		return enm
+		return ast.Type{
+			base: enm
+			qual: qual
+		}, storage
 	}
 	for {
 		match p.tok.kind {
@@ -229,7 +394,44 @@ fn (mut p Parser) read_base_type() ast.BaseType {
 			.k_unsigned {
 				unsigned++
 			}
-			.k_const, .k_restrict, .k_volatile {}
+			.k_const, .k_restrict, .k_volatile, .k_auto, .k_register, .k_static, .k_extern, .k_typedef {
+				match p.tok.kind {
+					.k_const { qual.is_const = true }
+					.k_restrict { qual.is_restrict = true }
+					.k_volatile { qual.is_volatile = true }
+			.k_auto {
+				if storage != .default || storage != .auto {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .auto
+			}
+			.k_register {
+				if storage != .default || storage != .register {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .register
+			}
+			.k_static {
+				if storage != .default || storage != .@static {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .@static
+			}
+			.k_extern {
+				if storage != .default || storage != .extern {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .extern
+			}
+			.k_typedef {
+				if storage != .default || storage != .typedef {
+					p.token_err('Cannot combine with previous declaration specifier')
+				}
+				storage = .typedef
+			}
+					else {}
+				}
+			}
 			else {
 				break
 			}
@@ -272,7 +474,8 @@ fn (mut p Parser) read_base_type() ast.BaseType {
 		p.token_err('Cannot combine `signed` and `unsigned`')
 	}
 
-	return match base_typ {
+	return ast.Type{
+		base: match base_typ {
 		.void {
 			ast.Numerical.void
 		}
@@ -338,6 +541,8 @@ fn (mut p Parser) read_base_type() ast.BaseType {
 			ast.Numerical.bool
 		}
 	}
+	qual: qual
+	}, storage
 }
 
 fn (mut p Parser) read_struct_type() ast.BaseType {
@@ -414,7 +619,11 @@ fn (mut p Parser) read_struct_type() ast.BaseType {
 		if p.tok.kind == .eof {
 			p.check(.rsbr)
 		}
-		decls := p.read_type_extend(p.read_base_type(),
+		base, storage := p.read_base_type()
+		if storage != .default {
+			p.token_err('Invalid storage class specifier')
+		}
+		decls := p.read_type_extend(base, storage,
 			consume_comma: true
 		)
 		for decl in decls {

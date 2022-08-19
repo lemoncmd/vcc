@@ -237,7 +237,14 @@ fn (mut p Parser) unary() ast.Expr {
 			if p.tok.kind == .lpar {
 				p.next()
 				if p.tok.kind.is_keyword() { // TODO is type
-					typ := p.read_type_extend(p.read_base_type())[0]
+					base, storage := p.read_base_type()
+					typ := p.read_type_extend(base, storage)[0]
+					if typ.storage != .default {
+						p.token_err('Illegal storage class specifier')
+					}
+					if typ.name != '' {
+						p.token_err('Unexpected name')
+					}
 					p.check(.rpar)
 					p.next()
 					return ast.SizeofExpr(typ.typ)
@@ -362,9 +369,19 @@ fn (mut p Parser) primary() ast.Expr {
 		.ident {
 			name := p.tok.str
 			p.next()
+			mut scopeid := p.curscope
+			for scopeid != -1 {
+				scope := p.curscopes[scopeid]
+				if name in scope.types {
+					return ast.LvarLiteral {
+						name: name
+					}
+				}
+				scopeid = scope.parent
+			}
 			return ast.GvarLiteral{
 				name: name
-			} // TODO distinguish ident
+			}
 		}
 		.num {
 			val := p.tok.str.u64()
