@@ -1,8 +1,8 @@
 fn try(expected int, input string) {
 	//		'int printf(char*,...);int foo();int bar(int,int);int hw();void alloc4(int**,int,int,int,int);' +
-	write_file('tmp.c', input) or { panic('could not write file') }
+	write_file('tmp.c', 'int foo();int bar(int,int);' + input) or { panic('could not write file') }
 	system('./vcc tmp.c > tmp.s')
-	system('gcc -o tmp tmp.s') // todo: link tmp2.o
+	system('gcc -o tmp tmp.s tmp2.o') // todo: link tmp2.o
 	actual := system('./tmp') % 256
 	if actual == expected {
 		println('$input => $actual')
@@ -14,21 +14,20 @@ fn try(expected int, input string) {
 
 fn main() {
 	mut file := create('tmp2.c') or { panic('failed to create tmp2.c') }
-	/*
+
 	file.write('
-extern void *malloc(unsigned long int size);
-extern int printf(const char * format,...);
+//extern void *malloc(unsigned long int size);
+//extern int printf(const char * format,...);
 int foo(){return 21;}
-int bar(int i, int j){return i+j;}
-int hw(){printf("Hello, world!\\n");}
-void alloc4(int**p, int a, int b, int c, int d){*p=malloc(16);**p=a;*(*p+1)=b;*(*p+2)=c;*(*p+3)=d;}
+//int bar(int i, int j){return i+j;}
+//int hw(){printf("Hello, world!\\n");}
+//void alloc4(int**p, int a, int b, int c, int d){*p=malloc(16);**p=a;*(*p+1)=b;*(*p+2)=c;*(*p+3)=d;}
 '.bytes()) or {
 	panic('could not write file')
 }
 	file.close()
 	system('./vcc tmp2.c > tmp2.s')
 	system('gcc -c -o tmp2.o tmp2.s')
-	*/
 	try(0, 'int main(){return 0;}')
 	try(42, 'int main(){return 42;}')
 	try(21, 'int main(){return 5+20-4;}')

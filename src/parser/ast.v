@@ -20,6 +20,10 @@ pub fn (mut p Parser) top() {
 				p.funs[decls[0].name] = p.function(decls[0].typ)
 			}
 			.semi {
+				for decl in decls {
+					p.globalscope.types[decl.name] = decl.typ
+					p.globalscope.storages[decl.name] = decl.storage
+				}
 				p.next()
 			}
 			else {

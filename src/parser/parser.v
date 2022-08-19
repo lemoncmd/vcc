@@ -15,6 +15,7 @@ mut:
 	curscope  int = -1
 	curscopes []ast.ScopeTable
 pub mut:
+	globalscope ast.ScopeTable
 	funs map[string]ast.FunctionDecl
 }
 

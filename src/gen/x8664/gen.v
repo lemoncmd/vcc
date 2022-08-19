@@ -6,6 +6,7 @@ import strings
 pub struct Gen {
 	funs map[string]ast.FunctionDecl
 mut:
+	globalscope ast.ScopeTable
 	curfn_name  string
 	curfn_scope []ast.ScopeTable
 	curscope    int = -1
@@ -39,12 +40,24 @@ pub fn (mut g Gen) gen() {
 	g.out = strings.new_builder(10000)
 	g.writeln('.intel_syntax noprefix')
 	g.writeln('.data')
+	for name, typ in g.globalscope.types {
+		if typ.decls.len != 0 && typ.decls.last() is ast.Function {
+			continue
+		}
+		storage := g.globalscope.storages[name]
+		if storage != .@static {
+			g.writeln('.global $name')
+		}
+		g.writeln('$name:')
+		g.writeln('.zero 8')
+	}
 	g.writeln('.text')
 	for name, func in g.funs {
 		g.curfn_name = name
 		g.curfn_scope = func.scopes
 		g.curscope = -1
 		offset := g.set_fn_offset()
+		// TODO static
 		g.writeln('.global $name')
 		g.writeln('$name:')
 
@@ -134,6 +147,9 @@ fn (mut g Gen) gen_lval(expr ast.Expr) {
 			_, _, offset := g.find_lvar(expr.name)
 			g.writeln('  lea rax, [rbp - $offset]')
 		}
+		ast.GvarLiteral {
+			g.writeln('  lea rax, $expr.name[rip]')
+		}
 		else {}
 	}
 }
@@ -156,7 +172,12 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 				g.writeln('  mov rax, rdx')
 			}
 		}
-		ast.CallExpr {}
+		ast.CallExpr {
+			g.gen_lval(expr.left)
+			g.writeln('  mov rdx, rax')
+			g.writeln('  mov rax, 0')
+			g.writeln('  call rdx')
+		}
 		ast.IntegerLiteral {
 			g.writeln('  mov rax, $expr.val')
 		}
@@ -169,6 +190,9 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 		ast.LvarLiteral {
 			_, _, offset := g.find_lvar(expr.name)
 			g.writeln('  mov rax, [rbp - $offset]')
+		}
+		ast.GvarLiteral {
+			g.writeln('  mov rax, $expr.name[rip]')
 		}
 		else {}
 	}
