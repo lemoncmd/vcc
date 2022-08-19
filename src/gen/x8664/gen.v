@@ -90,6 +90,7 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 			g.writeln('.L.ifend.$label:')
 		}
 		ast.ForStmt {
+			label := g.get_label()
 			match stmt.first {
 				ast.DeclStmt {}
 				ast.ExprStmt {
@@ -97,9 +98,24 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 				}
 				else {}
 			}
+			g.writeln('  jmp .L.forcond.$label')
+			g.writeln('.L.forstmt.$label:')
 			g.gen_stmt(stmt.stmt)
 			g.gen_expr(stmt.next)
+			g.writeln('.L.forcond.$label:')
 			g.gen_expr(stmt.cond)
+			g.writeln('  test rax, rax')
+			g.writeln('  jne .L.forstmt.$label')
+		}
+		ast.WhileStmt {
+			label := g.get_label()
+			g.writeln('.L.whilecond.$label:')
+			g.gen_expr(stmt.cond)
+			g.writeln('  test rax, rax')
+			g.writeln('  je .L.whileend.$label')
+			g.gen_stmt(stmt.stmt)
+			g.writeln('  jmp .L.whilecond.$label')
+			g.writeln('.L.whileend.$label:')
 		}
 		ast.ExprStmt {
 			g.gen_expr(stmt.expr)
