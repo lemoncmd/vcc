@@ -36,15 +36,46 @@ pub fn (mut p Parser) top() {
 
 fn (mut p Parser) function(typ ast.Type) ast.FunctionDecl {
 	p.curscopes = []ast.ScopeTable{}
-	body := p.stmt()
-	if body !is ast.BlockStmt {
-		p.token_err('Expected Block')
-	}
+	func := typ.decls.last() as ast.Function
+	body := p.block_stmt(args: func.args)
 	p.curscope = -1
 	return ast.FunctionDecl{
 		typ: typ
-		body: body as ast.BlockStmt
+		body: body
 		scopes: p.curscopes
+	}
+}
+
+[params]
+struct BlockStmtParam {
+	args []ast.FuncArgs
+}
+
+fn (mut p Parser) block_stmt(param BlockStmtParam) ast.BlockStmt {
+	p.next()
+	scopeid := p.curscopes.len
+	parent_scopeid := p.curscope
+	mut scope := ast.ScopeTable{
+		parent: parent_scopeid
+	}
+	p.curscopes << scope
+	p.curscope = scopeid
+	for arg in param.args {
+		p.curscopes[p.curscope].types[arg.name] = arg.typ
+		p.curscopes[p.curscope].storages[arg.name] = .default
+	}
+	mut stmts := []ast.Stmt{}
+	for p.tok.kind != .rsbr {
+		if p.tok.kind == .eof {
+			p.token_err('Expected `}`')
+		}
+		stmts << if p.tok.kind.is_type_keyword() { p.declaration() } else { p.stmt() } // TODO type def
+	}
+	p.next()
+	p.curscope = parent_scopeid
+	return ast.BlockStmt{
+		stmts: stmts
+		id: scopeid
 	}
 }
 
@@ -60,26 +91,7 @@ fn (mut p Parser) stmt() ast.Stmt {
 			return node
 		}
 		.lsbr {
-			p.next()
-			scopeid := p.curscopes.len
-			parent_scopeid := p.curscope
-			p.curscopes << ast.ScopeTable{
-				parent: parent_scopeid
-			}
-			p.curscope = scopeid
-			mut stmts := []ast.Stmt{}
-			for p.tok.kind != .rsbr {
-				if p.tok.kind == .eof {
-					p.token_err('Expected `}`')
-				}
-				stmts << if p.tok.kind.is_type_keyword() { p.declaration() } else { p.stmt() } // TODO type def
-			}
-			p.next()
-			p.curscope = parent_scopeid
-			return ast.BlockStmt{
-				stmts: stmts
-				id: scopeid
-			}
+			return p.block_stmt()
 		}
 		.k_if {
 			p.next()

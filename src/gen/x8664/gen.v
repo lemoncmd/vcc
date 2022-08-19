@@ -3,6 +3,13 @@ module x8664
 import ast
 import strings
 
+const (
+	reg1 = ['dil', 'sil', 'dl', 'cl', 'r8b', 'r9b']
+	reg2 = ['di', 'si', 'dx', 'cx', 'r8w', 'r9w']
+	reg4 = ['edi', 'esi', 'edx', 'ecx', 'r8d', 'r9d']
+	reg8 = ['rdi', 'rsi', 'rdx', 'rcx', 'r8', 'r9']
+)
+
 pub struct Gen {
 	funs map[string]ast.FunctionDecl
 mut:
@@ -55,15 +62,23 @@ pub fn (mut g Gen) gen() {
 	for name, func in g.funs {
 		g.curfn_name = name
 		g.curfn_scope = func.scopes
-		g.curscope = -1
-		offset := g.set_fn_offset()
+		frame_size := g.set_fn_offset()
 		// TODO static
 		g.writeln('.global $name')
 		g.writeln('$name:')
 
 		g.writeln('  push rbp')
 		g.writeln('  mov rbp, rsp')
-		g.writeln('  sub rsp, $offset')
+		g.writeln('  sub rsp, $frame_size')
+
+		typ := func.typ.decls.last() as ast.Function
+		reglen := if typ.args.len > 6 { 6 } else { typ.args.len }
+		g.curscope = 0
+		for i in 0..reglen {
+			_, _, offset := g.find_lvar(typ.args[i].name)
+			g.writeln('  mov qword ptr [rbp - $offset], ${reg8[i]}')
+		}
+		g.curscope = -1
 
 		g.gen_stmt(func.body)
 
@@ -173,10 +188,18 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 			}
 		}
 		ast.CallExpr {
+			for arg in expr.args.reverse() {
+				g.gen_expr(arg)
+				g.writeln('  push rax')
+			}
 			g.gen_lval(expr.left)
-			g.writeln('  mov rdx, rax')
+			g.writeln('  mov rbx, rax')
 			g.writeln('  mov rax, 0')
-			g.writeln('  call rdx')
+			reglen := if expr.args.len > 6 { 6 } else { expr.args.len }
+			for i in 0..reglen {
+				g.writeln('  pop ${reg8[i]}')
+			}
+			g.writeln('  call rbx')
 		}
 		ast.IntegerLiteral {
 			g.writeln('  mov rax, $expr.val')

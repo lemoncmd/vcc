@@ -63,7 +63,7 @@ pub mut:
 }
 
 pub struct FuncArgs {
-mut:
+pub mut:
 	name string
 	typ  Type
 }

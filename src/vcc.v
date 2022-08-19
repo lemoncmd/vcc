@@ -7,7 +7,7 @@ import parser
 import gen.x8664
 
 fn main() {
-	program := os.read_file(os.args[1]) or { 'int a;int main() {int b;a = 2; b = 4-1; return a;}' }
+	program := os.read_file(os.args[1]) or { 'int a(){}int main() {a();}' }
 	mut s := &scanner.Scanner{program, 0, 1, 0}
 	mut tokens := []token.Token{}
 	for {

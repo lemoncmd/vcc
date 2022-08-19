@@ -19,7 +19,7 @@ fn main() {
 //extern void *malloc(unsigned long int size);
 //extern int printf(const char * format,...);
 int foo(){return 21;}
-//int bar(int i, int j){return i+j;}
+int bar(int i, int j){return i+j;}
 //int hw(){printf("Hello, world!\\n");}
 //void alloc4(int**p, int a, int b, int c, int d){*p=malloc(16);**p=a;*(*p+1)=b;*(*p+2)=c;*(*p+3)=d;}
 '.bytes()) or {
