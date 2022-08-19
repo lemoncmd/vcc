@@ -163,7 +163,12 @@ fn (mut g Gen) gen_lval(expr ast.Expr) {
 			g.writeln('  lea rax, [rbp - $offset]')
 		}
 		ast.GvarLiteral {
-			g.writeln('  lea rax, $expr.name[rip]')
+			g.writeln('  mov rax, OFFSET FLAT:$expr.name')
+		}
+		ast.UnaryExpr {
+			if expr.op == .mul {
+				g.gen_expr(expr.left)
+			}
 		}
 		else {}
 	}
@@ -215,7 +220,7 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 			g.writeln('  mov rax, [rbp - $offset]')
 		}
 		ast.GvarLiteral {
-			g.writeln('  mov rax, $expr.name[rip]')
+			g.writeln('  mov rax, [OFFSET FLAT:$expr.name]')
 		}
 		else {}
 	}
@@ -229,6 +234,13 @@ pub fn (mut g Gen) gen_unary(expr ast.UnaryExpr) {
 		.minus {
 			g.gen_expr(expr.left)
 			g.writeln('  neg rax')
+		}
+		.mul {
+			g.gen_expr(expr.left)
+			g.writeln('  mov rax, qword ptr [rax]')
+		}
+		.aand {
+			g.gen_lval(expr.left)
 		}
 		else {}
 	}

@@ -208,31 +208,31 @@ fn (mut p Parser) read_base_type() (ast.Type, ast.Storage) {
 				qual.is_volatile = true
 			}
 			.k_auto {
-				if storage != .default || storage != .auto {
+				if storage != .default && storage != .auto {
 					p.token_err('Cannot combine with previous declaration specifier')
 				}
 				storage = .auto
 			}
 			.k_register {
-				if storage != .default || storage != .register {
+				if storage != .default && storage != .register {
 					p.token_err('Cannot combine with previous declaration specifier')
 				}
 				storage = .register
 			}
 			.k_static {
-				if storage != .default || storage != .@static {
+				if storage != .default && storage != .@static {
 					p.token_err('Cannot combine with previous declaration specifier')
 				}
 				storage = .@static
 			}
 			.k_extern {
-				if storage != .default || storage != .extern {
+				if storage != .default && storage != .extern {
 					p.token_err('Cannot combine with previous declaration specifier')
 				}
 				storage = .extern
 			}
 			.k_typedef {
-				if storage != .default || storage != .typedef {
+				if storage != .default && storage != .typedef {
 					p.token_err('Cannot combine with previous declaration specifier')
 				}
 				storage = .typedef
@@ -256,31 +256,31 @@ fn (mut p Parser) read_base_type() (ast.Type, ast.Storage) {
 					qual.is_volatile = true
 				}
 				.k_auto {
-					if storage != .default || storage != .auto {
+					if storage != .default && storage != .auto {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .auto
 				}
 				.k_register {
-					if storage != .default || storage != .register {
+					if storage != .default && storage != .register {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .register
 				}
 				.k_static {
-					if storage != .default || storage != .@static {
+					if storage != .default && storage != .@static {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .@static
 				}
 				.k_extern {
-					if storage != .default || storage != .extern {
+					if storage != .default && storage != .extern {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .extern
 				}
 				.k_typedef {
-					if storage != .default || storage != .typedef {
+					if storage != .default && storage != .typedef {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .typedef
@@ -312,31 +312,31 @@ fn (mut p Parser) read_base_type() (ast.Type, ast.Storage) {
 					qual.is_volatile = true
 				}
 				.k_auto {
-					if storage != .default || storage != .auto {
+					if storage != .default && storage != .auto {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .auto
 				}
 				.k_register {
-					if storage != .default || storage != .register {
+					if storage != .default && storage != .register {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .register
 				}
 				.k_static {
-					if storage != .default || storage != .@static {
+					if storage != .default && storage != .@static {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .@static
 				}
 				.k_extern {
-					if storage != .default || storage != .extern {
+					if storage != .default && storage != .extern {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .extern
 				}
 				.k_typedef {
-					if storage != .default || storage != .typedef {
+					if storage != .default && storage != .typedef {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .typedef
@@ -365,31 +365,31 @@ fn (mut p Parser) read_base_type() (ast.Type, ast.Storage) {
 					qual.is_volatile = true
 				}
 				.k_auto {
-					if storage != .default || storage != .auto {
+					if storage != .default && storage != .auto {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .auto
 				}
 				.k_register {
-					if storage != .default || storage != .register {
+					if storage != .default && storage != .register {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .register
 				}
 				.k_static {
-					if storage != .default || storage != .@static {
+					if storage != .default && storage != .@static {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .@static
 				}
 				.k_extern {
-					if storage != .default || storage != .extern {
+					if storage != .default && storage != .extern {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .extern
 				}
 				.k_typedef {
-					if storage != .default || storage != .typedef {
+					if storage != .default && storage != .typedef {
 						p.token_err('Cannot combine with previous declaration specifier')
 					}
 					storage = .typedef
@@ -436,31 +436,31 @@ fn (mut p Parser) read_base_type() (ast.Type, ast.Storage) {
 						qual.is_volatile = true
 					}
 					.k_auto {
-						if storage != .default || storage != .auto {
+						if storage != .default && storage != .auto {
 							p.token_err('Cannot combine with previous declaration specifier')
 						}
 						storage = .auto
 					}
 					.k_register {
-						if storage != .default || storage != .register {
+						if storage != .default && storage != .register {
 							p.token_err('Cannot combine with previous declaration specifier')
 						}
 						storage = .register
 					}
 					.k_static {
-						if storage != .default || storage != .@static {
+						if storage != .default && storage != .@static {
 							p.token_err('Cannot combine with previous declaration specifier')
 						}
 						storage = .@static
 					}
 					.k_extern {
-						if storage != .default || storage != .extern {
+						if storage != .default && storage != .extern {
 							p.token_err('Cannot combine with previous declaration specifier')
 						}
 						storage = .extern
 					}
 					.k_typedef {
-						if storage != .default || storage != .typedef {
+						if storage != .default && storage != .typedef {
 							p.token_err('Cannot combine with previous declaration specifier')
 						}
 						storage = .typedef
