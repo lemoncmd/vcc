@@ -4,8 +4,8 @@ import token
 
 pub struct FunctionDecl {
 pub:
-	typ  Type
-	body BlockStmt
+	typ    Type
+	body   BlockStmt
 	scopes []ScopeTable
 }
 
@@ -114,7 +114,7 @@ pub:
 pub struct BlockStmt {
 pub:
 	stmts []Stmt
-	id int
+	id    int
 }
 
 pub struct EmptyStmt {

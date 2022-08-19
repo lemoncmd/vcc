@@ -6,16 +6,16 @@ import ast
 pub struct Parser {
 	program string
 mut:
-	tokens  []token.Token
-	pos     int
-	tok     token.Token
-	switchs []ast.SwitchStmt
-	structs map[string]ast.Struct
-	unions  map[string]ast.Union
-	curscope int = -1
+	tokens    []token.Token
+	pos       int
+	tok       token.Token
+	switchs   []ast.SwitchStmt
+	structs   map[string]ast.Struct
+	unions    map[string]ast.Union
+	curscope  int = -1
 	curscopes []ast.ScopeTable
 pub mut:
-	funs    map[string]ast.FunctionDecl
+	funs map[string]ast.FunctionDecl
 }
 
 fn (mut p Parser) next() {

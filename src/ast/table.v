@@ -4,8 +4,7 @@ pub struct ScopeTable {
 pub:
 	parent int
 pub mut:
-	types map[string]Type
+	types    map[string]Type
 	storages map[string]Storage
-	offset map[string]int
+	offset   map[string]int
 }
-

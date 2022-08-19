@@ -6,9 +6,9 @@ import strings
 pub struct Gen {
 	funs map[string]ast.FunctionDecl
 mut:
-	curfn_name string
+	curfn_name  string
 	curfn_scope []ast.ScopeTable
-	curscope int = -1
+	curscope    int = -1
 pub mut:
 	out strings.Builder
 }
@@ -89,7 +89,6 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 }
 
 fn (mut g Gen) gen_lval(expr ast.Expr) {
-	println(expr)
 	match expr {
 		ast.LvarLiteral {
 			_, _, offset := g.find_lvar(expr.name)
@@ -118,7 +117,7 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 			}
 		}
 		ast.CallExpr {}
-		ast.IntegerLiteral{
+		ast.IntegerLiteral {
 			g.writeln('  mov rax, $expr.val')
 		}
 		ast.BinaryExpr {
@@ -191,11 +190,11 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 			g.writeln('  movzx eax, al')
 		}
 		.assign {
-			g.gen_expr(expr.right)
-			g.writeln('  push rax')
 			g.gen_lval(expr.left)
+			g.writeln('  push rax')
+			g.gen_expr(expr.right)
 			g.writeln('  pop rdx')
-			g.writeln('  mov qword ptr [rax], rdx')
+			g.writeln('  mov qword ptr [rdx], rax')
 		}
 		else {}
 	}

@@ -2,8 +2,8 @@ module ast
 
 pub struct Type {
 pub mut:
-	base BaseType
-	qual Qualifier
+	base  BaseType
+	qual  Qualifier
 	decls []Declarator
 }
 
@@ -39,7 +39,7 @@ pub enum Storage {
 
 pub struct Qualifier {
 pub mut:
-	is_const bool
+	is_const    bool
 	is_volatile bool
 	is_restrict bool
 }
@@ -126,7 +126,7 @@ pub:
 pub fn (t Type) is_complete_type() bool {
 	for d in t.iter() {
 		return match d {
-			Pointer{
+			Pointer {
 				true
 			}
 			Array {

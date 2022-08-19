@@ -373,7 +373,7 @@ fn (mut p Parser) primary() ast.Expr {
 			for scopeid != -1 {
 				scope := p.curscopes[scopeid]
 				if name in scope.types {
-					return ast.LvarLiteral {
+					return ast.LvarLiteral{
 						name: name
 					}
 				}
