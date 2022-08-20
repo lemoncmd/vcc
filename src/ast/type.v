@@ -68,10 +68,12 @@ pub mut:
 	typ  Type
 }
 
-pub type BaseType = Deftype | Enum | Numerical | Struct | Union
+pub type BaseType = Void | Deftype | Enum | Numerical | Struct | Union
+
+pub struct Void {}
 
 pub enum Numerical {
-	void
+	bool
 	char
 	schar
 	uchar
@@ -86,7 +88,6 @@ pub enum Numerical {
 	float
 	double
 	ldouble
-	bool
 	floatc
 	doublec
 	ldoublec
@@ -123,6 +124,10 @@ pub:
 	name string
 }
 
+pub fn (n Numerical) is_unsigned() bool {
+	return n in [.uchar, .ushort, .ulong, .ulonglong]
+}
+
 pub fn (t Type) is_complete_type() bool {
 	for d in t.iter() {
 		return match d {
@@ -137,12 +142,5 @@ pub fn (t Type) is_complete_type() bool {
 			}
 		}
 	}
-	return match t.base {
-		Numerical {
-			t.base != .void
-		}
-		else {
-			false
-		}
-	}
+	return t.base is Numerical
 }

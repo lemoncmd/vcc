@@ -39,6 +39,7 @@ pub type Expr = BinaryExpr
 	| StringLiteral
 	| TernaryExpr
 	| UnaryExpr
+	| DerefExpr
 
 pub struct IfStmt {
 pub:
@@ -154,6 +155,13 @@ pub struct UnaryExpr {
 pub:
 	op   token.Kind
 	left Expr
+}
+
+pub struct DerefExpr {
+pub:
+	left Expr
+pub mut:
+	typ Type
 }
 
 pub struct SelectorExpr {

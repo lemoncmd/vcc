@@ -75,8 +75,11 @@ pub fn (mut g Gen) gen() {
 		reglen := if typ.args.len > 6 { 6 } else { typ.args.len }
 		g.curscope = 0
 		for i in 0..reglen {
-			_, _, offset := g.find_lvar(typ.args[i].name)
-			g.writeln('  mov qword ptr [rbp - $offset], ${reg8[i]}')
+			lvar_typ, _, offset := g.find_lvar(typ.args[i].name)
+			if (lvar_typ.decls.len == 0 && lvar_typ.base is ast.Numerical) || (lvar_typ.decls.len != 0 && lvar_typ.decls.last() is ast.Pointer) {
+				size := get_size_str(get_type_size(lvar_typ))
+				g.writeln('  mov $size ptr [rbp - $offset], ${reg8[i]}')
+			}
 		}
 		g.curscope = -1
 
@@ -165,12 +168,29 @@ fn (mut g Gen) gen_lval(expr ast.Expr) {
 		ast.GvarLiteral {
 			g.writeln('  mov rax, OFFSET FLAT:$expr.name')
 		}
-		ast.UnaryExpr {
-			if expr.op == .mul {
-				g.gen_expr(expr.left)
-			}
+		ast.DerefExpr {
+			g.gen_expr(expr.left)
 		}
 		else {}
+	}
+}
+
+fn (mut g Gen) gen_load(dst string, src string, typ ast.Type) {
+	if typ.decls.len != 0 && typ.decls.last() is ast.Pointer {
+		g.writeln('  mov $dst, qword ptr [$src]')
+	}
+	if typ.decls.len == 0 {
+		if typ.base is ast.Numerical {
+			instruction := match typ.base {
+				.char, .schar, .short { 'movsx' }
+				.uchar, .ushort { 'movzx' }
+				.int { 'movsxd' }
+				.uint, .long, .longlong, .ulong, .ulonglong { 'mov' }
+				else { 'INVALID' }
+			}
+			size := get_size_str(get_type_size(typ))
+			g.writeln('  $instruction $dst, $size ptr [$src]')
+		}
 	}
 }
 
@@ -215,6 +235,10 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 		ast.UnaryExpr {
 			g.gen_unary(expr)
 		}
+		ast.DerefExpr {
+			g.gen_expr(expr.left)
+			g.writeln('  mov rax, qword ptr [rax]')
+		}
 		ast.LvarLiteral {
 			_, _, offset := g.find_lvar(expr.name)
 			g.writeln('  mov rax, [rbp - $offset]')
@@ -234,10 +258,6 @@ pub fn (mut g Gen) gen_unary(expr ast.UnaryExpr) {
 		.minus {
 			g.gen_expr(expr.left)
 			g.writeln('  neg rax')
-		}
-		.mul {
-			g.gen_expr(expr.left)
-			g.writeln('  mov rax, qword ptr [rax]')
 		}
 		.aand {
 			g.gen_lval(expr.left)

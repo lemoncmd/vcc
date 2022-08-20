@@ -4,6 +4,7 @@ import os
 import scanner
 import token
 import parser
+import checker
 import gen.x8664
 
 fn main() {
@@ -18,13 +19,17 @@ fn main() {
 			break
 		}
 	}
-	mut p := &parser.Parser{
+	mut p := parser.Parser{
 		program: program
 		tokens: tokens
 		pos: 0
 		tok: tokens[0]
 	}
 	p.top()
+/*	mut c := checker.Checker{
+		globalscope: p.globalscope
+		funs: p.funs
+	}*/
 	mut g := x8664.Gen{
 		globalscope: p.globalscope
 		funs: p.funs

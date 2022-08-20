@@ -257,7 +257,13 @@ fn (mut p Parser) unary() ast.Expr {
 			}
 			return ast.SizeofExpr(p.unary())
 		}
-		.mul, .aand, .plus, .minus, .anot, .lnot {
+		.mul {
+			p.next()
+			return ast.DerefExpr{
+				left: p.unary()
+			}
+		}
+		.aand, .plus, .minus, .anot, .lnot {
 			p.next()
 			return ast.UnaryExpr{
 				op: op
@@ -297,8 +303,7 @@ fn (mut p Parser) postfix() ast.Expr {
 				expr := p.expr()
 				p.check(.rcbr)
 				p.next()
-				node = ast.UnaryExpr{
-					op: .mul
+				node = ast.DerefExpr{
 					left: ast.BinaryExpr{
 						op: .plus
 						left: node
@@ -341,8 +346,7 @@ fn (mut p Parser) postfix() ast.Expr {
 				p.check(.ident)
 				name := p.tok.str
 				p.next()
-				return ast.UnaryExpr{
-					op: .mul
+				return ast.DerefExpr{
 					left: ast.SelectorExpr{
 						left: node
 						field: name

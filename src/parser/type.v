@@ -513,7 +513,7 @@ fn (mut p Parser) read_base_type() (ast.Type, ast.Storage) {
 	return ast.Type{
 		base: match base_typ {
 			.void {
-				ast.Numerical.void
+				ast.Void{}
 			}
 			.char {
 				if signed > 0 {
