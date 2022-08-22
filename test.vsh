@@ -76,7 +76,7 @@ void alloc4(int**p, int a, int b, int c, int d){*p=malloc(16);**p=a;*(*p+1)=b;*(
 	try(4, 'int main(){return sizeof(1);}')
 	try(8, 'int main(){int *x;return sizeof(x);}')
 	try(4, 'int main(){int *x;return sizeof(*x);}')
-	try(4, 'int val,hoge();int main(){hoge();return val;}int hoge(){int hoge=4; val = hoge;}')
+	try(6, 'int val,hoge();int main(){hoge();return val;}int hoge(){int hoge=6; val = hoge;}')
 	try(4, 'int main(){char a=1;short int b=2; int c=3; long d=4; long long int e=5; return d;}')
 	try(111, 'int main(){char *a="hgoe"; printf(a); printf("hgoee"); return a[2];}')
 	try(12, 'int main(){return (3%2)?12:5;}')

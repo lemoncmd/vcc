@@ -13,7 +13,6 @@ fn main() {
 	mut tokens := []token.Token{}
 	for {
 		token := s.scan()
-		// println(token)
 		tokens << token
 		if token.kind == .eof {
 			break
@@ -26,13 +25,14 @@ fn main() {
 		tok: tokens[0]
 	}
 	p.top()
-/*	mut c := checker.Checker{
+	mut c := checker.Checker{
 		globalscope: p.globalscope
 		funs: p.funs
-	}*/
+	}
+	c.top()
 	mut g := x8664.Gen{
 		globalscope: p.globalscope
-		funs: p.funs
+		funs: c.funs
 	}
 	g.gen()
 	println(g.out.str())

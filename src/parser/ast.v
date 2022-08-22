@@ -271,6 +271,7 @@ fn (mut p Parser) stmt() ast.Stmt {
 
 fn (mut p Parser) declaration() ast.Stmt {
 	base_typ, storage := p.read_base_type()
+	mut inits := []ast.Decl{}
 	for {
 		// TODO storage class
 		extend := p.read_type_extend(base_typ, storage)[0] or { break }
@@ -279,6 +280,10 @@ fn (mut p Parser) declaration() ast.Stmt {
 		if p.tok.kind == .assign {
 			p.next()
 			expr := p.expr()
+			inits << ast.Decl{
+				name: extend.name
+				init: expr
+			}
 		}
 		if p.tok.kind == .semi {
 			break
@@ -290,6 +295,6 @@ fn (mut p Parser) declaration() ast.Stmt {
 	p.check(.semi)
 	p.next()
 	return ast.DeclStmt{
-		decls: []
+		decls: inits
 	}
 }

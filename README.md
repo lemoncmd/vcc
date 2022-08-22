@@ -15,9 +15,9 @@ The V Programming Language: https://vlang.io
 
 To build VCC, run the following command
 ```sh
-v -o vcc ./src
+v .
 ```
-or just type
+or type
 ```sh
 make
 ```
@@ -25,7 +25,7 @@ make
 To compile C source code,
 ```sh
 ./vcc foobar.c > foobar.s
-gcc -o foobar foobar.s
+gcc -fno-pie -no-pie -o foobar foobar.s
 ```
 
 ## Key Features of VCC

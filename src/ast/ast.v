@@ -5,8 +5,9 @@ import token
 pub struct FunctionDecl {
 pub:
 	typ    Type
-	body   BlockStmt
 	scopes []ScopeTable
+pub mut:
+	body   BlockStmt
 }
 
 pub type Stmt = BlockStmt
@@ -42,7 +43,7 @@ pub type Expr = BinaryExpr
 	| DerefExpr
 
 pub struct IfStmt {
-pub:
+pub mut:
 	cond      Expr
 	stmt      Stmt
 	else_stmt Stmt
@@ -108,7 +109,7 @@ pub struct ContinueStmt {
 }
 
 pub struct ReturnStmt {
-pub:
+pub mut:
 	expr Expr
 }
 
@@ -122,7 +123,7 @@ pub struct EmptyStmt {
 }
 
 pub struct ExprStmt {
-pub:
+pub mut:
 	expr Expr
 }
 
@@ -133,12 +134,12 @@ pub:
 
 pub struct Decl {
 pub:
-	typ  Type
 	name string
+	init Init
 }
 
 pub struct TernaryExpr {
-pub:
+pub mut:
 	cond  Expr
 	left  Expr
 	right Expr
@@ -147,6 +148,7 @@ pub:
 pub struct BinaryExpr {
 pub:
 	op    token.Kind
+pub mut:
 	left  Expr
 	right Expr
 }
@@ -154,13 +156,13 @@ pub:
 pub struct UnaryExpr {
 pub:
 	op   token.Kind
+pub mut:
 	left Expr
 }
 
 pub struct DerefExpr {
-pub:
-	left Expr
 pub mut:
+	left Expr
 	typ Type
 }
 
@@ -174,11 +176,12 @@ pub struct CrementExpr {
 pub:
 	op       token.Kind
 	is_front bool
+pub mut:
 	left     Expr
 }
 
 pub struct CallExpr {
-pub:
+pub mut:
 	left Expr
 	args []Expr
 }
@@ -211,7 +214,9 @@ pub:
 pub type SizeofExpr = Expr | Type
 
 pub struct CastExpr {
+pub:
 	typ  Type
+pub mut:
 	left Expr
 }
 
