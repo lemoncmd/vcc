@@ -301,7 +301,7 @@ pub fn (mut g Gen) gen_unary(expr ast.UnaryExpr) {
 }
 
 pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
-	if expr.op in [.plus, .minus, .mul, .div, .mod, .eq, .ne, .gt, .ge, .lt, .le] {
+	if expr.op in [.plus, .minus, .mul, .div, .mod, .aand, .aor, .eq, .ne, .gt, .ge, .lt, .le] {
 		g.gen_expr(expr.right)
 		g.writeln('  push rax')
 		g.gen_expr(expr.left)
@@ -328,6 +328,12 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 			g.writeln('  idiv rcx')
 			g.writeln('  mov rax, rdx')
 		}
+		.aand {
+			g.writeln('  and rax, rdx')
+		}
+		.aor {
+			g.writeln('  or rax, rdx')
+		}
 		.eq, .ne, .gt, .ge, .lt, .le {
 			cmd := match expr.op {
 				.eq { 'e' }
@@ -349,6 +355,10 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 			g.writeln('  pop rdx')
 			size := get_type_size(typ)
 			g.writeln('  mov ${get_size_str(size)} ptr [rdx], ${get_register(.rax, size)}')
+		}
+		.comma {
+			g.gen_expr(expr.left)
+			g.gen_expr(expr.right)
 		}
 		else {}
 	}
