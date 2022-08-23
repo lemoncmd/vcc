@@ -344,6 +344,13 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 		g.gen_expr(expr.left)
 		g.writeln('  pop rdx')
 	}
+	typ, size := if expr.op.is_assign() {
+		typ := g.gen_lval(expr.left)
+		g.writeln('  push rax')
+		g.gen_expr(expr.right)
+		g.writeln('  pop ' + if expr.op in [.ls_assign, .rs_assign] { 'rcx' } else {'rdx'})
+		typ, get_type_size(typ)
+	} else { ast.Type{base: ast.Void{}}, 0 }
 	match expr.op {
 		.plus {
 			g.writeln('  add rax, rdx')
@@ -435,12 +442,49 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 			g.writeln('.L.orend.$label:')
 		}
 		.assign {
-			typ := g.gen_lval(expr.left)
-			g.writeln('  push rax')
-			g.gen_expr(expr.right)
-			g.writeln('  pop rdx')
-			size := get_type_size(typ)
 			g.writeln('  mov ${get_size_str(size)} ptr [rdx], ${get_register(.rax, size)}')
+		}
+		.pl_assign {
+			g.writeln('  add ${get_size_str(size)} ptr [rdx], ${get_register(.rax, size)}')
+			g.gen_load(.rax, 'rdx', typ)
+		}
+		.mn_assign {
+			g.writeln('  sub ${get_size_str(size)} ptr [rdx], ${get_register(.rax, size)}')
+			g.gen_load(.rax, 'rdx', typ)
+		}
+		.ml_assign {
+			g.writeln('  imul ${get_size_str(size)} ptr [rdx], ${get_register(.rax, size)}')
+			g.gen_load(.rax, 'rdx', typ)
+		}
+		// TODO
+		.dv_assign {
+			g.writeln('  add ${get_size_str(size)} ptr [rdx], ${get_register(.rax, size)}')
+			g.gen_load(.rax, 'rdx', typ)
+		}
+		// TODO
+		.md_assign {
+			g.writeln('  add ${get_size_str(size)} ptr [rdx], ${get_register(.rax, size)}')
+			g.gen_load(.rax, 'rdx', typ)
+		}
+		.an_assign {
+			g.writeln('  and ${get_size_str(size)} ptr [rdx], ${get_register(.rax, size)}')
+			g.gen_load(.rax, 'rdx', typ)
+		}
+		.or_assign {
+			g.writeln('  or ${get_size_str(size)} ptr [rdx], ${get_register(.rax, size)}')
+			g.gen_load(.rax, 'rdx', typ)
+		}
+		.xo_assign {
+			g.writeln('  xor ${get_size_str(size)} ptr [rdx], ${get_register(.rax, size)}')
+			g.gen_load(.rax, 'rdx', typ)
+		}
+		.ls_assign {
+			g.writeln('  add ${get_size_str(size)} ptr [rdx], cl')
+			g.gen_load(.rax, 'rdx', typ)
+		}
+		.rs_assign {
+			g.writeln('  add ${get_size_str(size)} ptr [rdx], cl')
+			g.gen_load(.rax, 'rdx', typ)
 		}
 		else {}
 	}
