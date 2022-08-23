@@ -149,6 +149,14 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 			g.writeln('  jmp .L.whilecond.$label')
 			g.writeln('.L.whileend.$label:')
 		}
+		ast.DoStmt {
+			label := g.get_label()
+			g.writeln('.L.dostart.$label:')
+			g.gen_stmt(stmt.stmt)
+			g.gen_expr(stmt.cond)
+			g.writeln('  test rax, rax')
+			g.writeln('  jne .L.dostart.$label')
+		}
 		ast.DeclStmt {
 			for decl in stmt.decls {
 				expr := decl.init as ast.Expr
