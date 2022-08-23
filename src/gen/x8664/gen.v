@@ -302,13 +302,17 @@ pub fn (mut g Gen) gen_unary(expr ast.UnaryExpr) {
 			g.writeln('  sete al')
 			g.writeln('  movzx eax, al')
 		}
+		.anot {
+			g.gen_expr(expr.left)
+			g.writeln('  not rax')
+		}
 		else {}
 	}
 }
 
 // TODO unsigned
 pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
-	if expr.op in [.plus, .minus, .mul, .div, .mod, .aand, .aor, .eq, .ne, .gt, .ge, .lt, .le] {
+	if expr.op in [.plus, .minus, .mul, .div, .mod, .aand, .aor, .xor, .eq, .ne, .gt, .ge, .lt, .le] {
 		g.gen_expr(expr.right)
 		g.writeln('  push rax')
 		g.gen_expr(expr.left)
@@ -340,6 +344,9 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 		}
 		.aor {
 			g.writeln('  or rax, rdx')
+		}
+		.xor {
+			g.writeln('  xor rax, rdx')
 		}
 		.eq, .ne, .gt, .ge, .lt, .le {
 			cmd := match expr.op {
