@@ -399,6 +399,34 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 			g.writeln('  pop rcx')
 			g.writeln('  sar rax, cl')
 		}
+		.land {
+			label := g.get_label()
+			g.gen_expr(expr.left)
+			g.writeln('  test rax, rax')
+			g.writeln('  je .L.andfalse.$label')
+			g.gen_expr(expr.right)
+			g.writeln('  test rax, rax')
+			g.writeln('  je .L.andfalse.$label')
+			g.writeln('  mov rax, 1')
+			g.writeln('  jmp .L.andend.$label')
+			g.writeln('.L.andfalse.$label:')
+			g.writeln('  mov rax, 0')
+			g.writeln('.L.andend.$label:')
+		}
+		.lor {
+			label := g.get_label()
+			g.gen_expr(expr.left)
+			g.writeln('  test rax, rax')
+			g.writeln('  jne .L.ortrue.$label')
+			g.gen_expr(expr.right)
+			g.writeln('  test rax, rax')
+			g.writeln('  jne .L.ortrue.$label')
+			g.writeln('  mov rax, 0')
+			g.writeln('  jmp .L.orend.$label')
+			g.writeln('.L.ortrue.$label:')
+			g.writeln('  mov rax, 1')
+			g.writeln('.L.orend.$label:')
+		}
 		else {}
 	}
 }
