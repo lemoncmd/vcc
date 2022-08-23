@@ -7,7 +7,7 @@ pub:
 	typ    Type
 	scopes []ScopeTable
 pub mut:
-	body   BlockStmt
+	body BlockStmt
 }
 
 pub type Stmt = BlockStmt
@@ -31,6 +31,7 @@ pub type Expr = BinaryExpr
 	| CallExpr
 	| CastExpr
 	| CrementExpr
+	| DerefExpr
 	| FloatLiteral
 	| GvarLiteral
 	| IntegerLiteral
@@ -40,7 +41,6 @@ pub type Expr = BinaryExpr
 	| StringLiteral
 	| TernaryExpr
 	| UnaryExpr
-	| DerefExpr
 
 pub struct IfStmt {
 pub mut:
@@ -147,7 +147,7 @@ pub mut:
 
 pub struct BinaryExpr {
 pub:
-	op    token.Kind
+	op token.Kind
 pub mut:
 	left  Expr
 	right Expr
@@ -155,7 +155,7 @@ pub mut:
 
 pub struct UnaryExpr {
 pub:
-	op   token.Kind
+	op token.Kind
 pub mut:
 	left Expr
 }
@@ -163,7 +163,7 @@ pub mut:
 pub struct DerefExpr {
 pub mut:
 	left Expr
-	typ Type
+	typ  Type
 }
 
 pub struct SelectorExpr {
@@ -177,7 +177,7 @@ pub:
 	op       token.Kind
 	is_front bool
 pub mut:
-	left     Expr
+	left Expr
 }
 
 pub struct CallExpr {
@@ -215,7 +215,7 @@ pub type SizeofExpr = Expr | Type
 
 pub struct CastExpr {
 pub:
-	typ  Type
+	typ Type
 pub mut:
 	left Expr
 }

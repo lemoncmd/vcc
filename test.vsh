@@ -1,6 +1,8 @@
 fn try(expected int, input string) {
 	//		'int printf(char*,...);int foo();int bar(int,int);int hw();void alloc4(int**,int,int,int,int);' +
-	write_file('tmp.c', 'int printf(char*,...);int foo();int bar(int,int);void alloc4(int**,int,int,int,int);' + input) or { panic('could not write file') }
+	write_file('tmp.c',
+		'int printf(char*,...);int foo();int bar(int,int);void alloc4(int**,int,int,int,int);' +
+		input) or { panic('could not write file') }
 	system('./vcc tmp.c > tmp.s')
 	system('gcc -fno-pie -no-pie -o tmp tmp.s tmp2.o') // todo: link tmp2.o
 	actual := system('./tmp') % 256
@@ -23,8 +25,8 @@ int bar(int i, int j){return i+j;}
 //int hw(){printf("Hello, world!\\n");}
 void alloc4(int**p, int a, int b, int c, int d){*p=malloc(16);**p=a;*(*p+1)=b;*(*p+2)=c;*(*p+3)=d;}
 '.bytes()) or {
-	panic('could not write file')
-}
+		panic('could not write file')
+	}
 	file.close()
 	system('./vcc tmp2.c > tmp2.s')
 	system('gcc -c -fno-pie -no-pie -o tmp2.o tmp2.s')
@@ -69,7 +71,7 @@ void alloc4(int**p, int a, int b, int c, int d){*p=malloc(16);**p=a;*(*p+1)=b;*(
 	try(21, 'int fib(int);int main(){return fib(7);}int fib(int n){if(n>1)return fib(n-1)+fib(n-2);else return 1;}')
 	try(23, 'int hoge(int,int);int main(){return hoge(4,5);}int hoge(int n,int m){if(n>m)return 12;return 23;}')
 	try(3, 'int main(){int x;int *y;x=3;y=&x;return *y;}')
-//	try(3, 'int main(){int x;int y;int *z;x=3;y=5;z=&y+1;return *z;}')
+	//	try(3, 'int main(){int x;int y;int *z;x=3;y=5;z=&y+1;return *z;}')
 	try(3, 'int main(){int x;int *y;y=&x;*y=3;return x;}')
 	try(4, 'int main(){int *p;alloc4(&p, 1, 2, 4, 8);int *q;q=p+2;return *q;}')
 	try(8, 'int main(){int *p;alloc4(&p, 1, 2, 4, 8);int *q;q=p+3;return *q;}')

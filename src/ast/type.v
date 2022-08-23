@@ -68,7 +68,7 @@ pub mut:
 	typ  Type
 }
 
-pub type BaseType = Void | Deftype | Enum | Numerical | Struct | Union
+pub type BaseType = Deftype | Enum | Numerical | Struct | Union | Void
 
 pub struct Void {}
 

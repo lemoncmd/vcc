@@ -65,7 +65,12 @@ fn (mut c Checker) stmt(mut stmt ast.Stmt) {
 
 fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 	match expr {
-		ast.BinaryExpr { mut expr_ := expr as ast.BinaryExpr typ := c.binary(mut expr_) expr = expr_ return typ }
+		ast.BinaryExpr {
+			mut expr_ := expr as ast.BinaryExpr
+			typ := c.binary(mut expr_)
+			expr = expr_
+			return typ
+		}
 		ast.CallExpr {
 			mut expr_ := expr as ast.CallExpr
 			mut typ := c.expr(mut expr_.left)
@@ -88,7 +93,7 @@ fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 			return typ
 		}
 		ast.FloatLiteral {
-			return ast.Type {
+			return ast.Type{
 				base: ast.Numerical.float
 			}
 		}
@@ -100,7 +105,7 @@ fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 			return typ
 		}
 		ast.IntegerLiteral {
-			return ast.Type {
+			return ast.Type{
 				base: ast.Numerical.int
 			}
 		}
@@ -117,8 +122,8 @@ fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 			panic('Local variable not found')
 		}
 		ast.SelectorExpr {
-			return ast.Type {
-				base: ast.Numerical.int  // TODO
+			return ast.Type{
+				base: ast.Numerical.int // TODO
 			}
 		}
 		ast.SizeofExpr {
@@ -128,26 +133,33 @@ fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 				typ := c.expr(mut expr__)
 				expr = ast.SizeofExpr(typ)
 			}
-			return ast.Type {
+			return ast.Type{
 				base: ast.Numerical.ulonglong
 			}
 		}
 		ast.StringLiteral {
 			s := expr as ast.StringLiteral
-			return ast.Type {
+			return ast.Type{
 				base: ast.Numerical.char
-				decls: [ast.Declarator(ast.Array{number: s.val.len})] // TODO invalid char and escape seq. change to []u8
+				decls: [ast.Declarator(ast.Array{
+					number: s.val.len
+				})] // TODO invalid char and escape seq. change to []u8
 			}
 		}
 		ast.TernaryExpr {
 			mut expr_ := expr as ast.TernaryExpr
-			c.expr(mut expr_.cond) //TODO check if it is numerical
+			c.expr(mut expr_.cond) // TODO check if it is numerical
 			lhs := c.expr(mut expr_.left)
 			rhs := c.expr(mut expr_.right)
 			expr = expr_
-			return extend(lhs, rhs)// TODO
+			return extend(lhs, rhs) // TODO
 		}
-		ast.UnaryExpr { mut expr_ := expr as ast.UnaryExpr typ :=  c.unary(mut expr_) expr = expr_ return typ }
+		ast.UnaryExpr {
+			mut expr_ := expr as ast.UnaryExpr
+			typ := c.unary(mut expr_)
+			expr = expr_
+			return typ
+		}
 		ast.DerefExpr {
 			mut expr_ := expr as ast.DerefExpr
 			mut typ := c.expr(mut expr_.left)
@@ -161,12 +173,14 @@ fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 			return typ
 		}
 	}
-	return ast.Type{base: ast.Numerical.int}
+	return ast.Type{
+		base: ast.Numerical.int
+	}
 }
 
-
 fn extend(lhs ast.Type, rhs ast.Type) ast.Type {
-	if lhs.decls.len != 0 || rhs.decls.len != 0 || lhs.base !is ast.Numerical || rhs.base !is ast.Numerical {
+	if lhs.decls.len != 0 || rhs.decls.len != 0 || lhs.base !is ast.Numerical
+		|| rhs.base !is ast.Numerical {
 		panic('Internal type error')
 	}
 	lhs_num := lhs.base as ast.Numerical
@@ -174,10 +188,15 @@ fn extend(lhs ast.Type, rhs ast.Type) ast.Type {
 	lhs_extended := if int(lhs_num) < int(ast.Numerical.int) { ast.Numerical.int } else { lhs_num }
 	rhs_extended := if int(rhs_num) < int(ast.Numerical.int) { ast.Numerical.int } else { rhs_num }
 	if lhs_extended == rhs_extended {
-		return ast.Type{base: lhs_extended}
+		return ast.Type{
+			base: lhs_extended
+		}
 	}
-	return ast.Type{base: if int(lhs_extended) < int(rhs_extended) { rhs_extended } else {lhs_extended}}
+	return ast.Type{
+		base: if int(lhs_extended) < int(rhs_extended) { rhs_extended } else { lhs_extended }
+	}
 }
+
 fn (mut c Checker) binary(mut expr ast.BinaryExpr) ast.Type {
 	mut lhs := c.expr(mut expr.left)
 	mut rhs := c.expr(mut expr.right)
@@ -220,24 +239,28 @@ fn (mut c Checker) binary(mut expr ast.BinaryExpr) ast.Type {
 	}
 	if expr.op == .minus {
 		if lhs.decls.len != 0 && rhs.decls.len != 0 {
-			//TODO
+			// TODO
 		}
 		return extend(lhs, rhs)
 	}
 	if expr.op in [.mul, .div, .mod] {
 		return extend(lhs, rhs)
 	}
-	return ast.Type{base: ast.Numerical.int}
+	return ast.Type{
+		base: ast.Numerical.int
+	}
 }
 
 fn (mut c Checker) unary(mut expr ast.UnaryExpr) ast.Type {
 	mut typ := c.expr(mut expr.left)
 	if expr.op == .lnot {
-		return ast.Type{base: ast.Numerical.int}
+		return ast.Type{
+			base: ast.Numerical.int
+		}
 	}
 	if expr.op == .aand {
 		typ.decls << ast.Pointer{}
 		return typ
 	}
-	return extend(typ, ast.Type{base: ast.Numerical.int})
+	return extend(typ, ast.Type{ base: ast.Numerical.int })
 }

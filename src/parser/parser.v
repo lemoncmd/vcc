@@ -16,7 +16,7 @@ mut:
 	curscopes []ast.ScopeTable
 pub mut:
 	globalscope ast.ScopeTable
-	funs map[string]ast.FunctionDecl
+	funs        map[string]ast.FunctionDecl
 }
 
 fn (mut p Parser) next() {

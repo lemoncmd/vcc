@@ -10,7 +10,7 @@ mut:
 	curfn_name  string
 	curfn_scope []ast.ScopeTable
 	curscope    int = -1
-	labelid int
+	labelid     int
 	strings     []string
 pub mut:
 	out strings.Builder
@@ -68,11 +68,13 @@ pub fn (mut g Gen) gen() {
 		typ := func.typ.decls.last() as ast.Function
 		reglen := if typ.args.len > 6 { 6 } else { typ.args.len }
 		g.curscope = 0
-		for i in 0..reglen {
+		for i in 0 .. reglen {
 			lvar_typ, _, offset := g.find_lvar(typ.args[i].name)
-			if (lvar_typ.decls.len == 0 && lvar_typ.base is ast.Numerical) || (lvar_typ.decls.len != 0 && lvar_typ.decls.last() is ast.Pointer) {
+			if (lvar_typ.decls.len == 0 && lvar_typ.base is ast.Numerical)
+				|| (lvar_typ.decls.len != 0 && lvar_typ.decls.last() is ast.Pointer) {
 				size := get_type_size(lvar_typ)
-				g.writeln('  mov ${get_size_str(size)} ptr [rbp - $offset], ${get_register(regs[i], size)}')
+				g.writeln('  mov ${get_size_str(size)} ptr [rbp - $offset], ${get_register(regs[i],
+					size)}')
 			}
 		}
 		g.curscope = -1
@@ -154,7 +156,8 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 				typ, _, offset := g.find_lvar(decl.name)
 				g.writeln('  lea rdx, [rbp - $offset]')
 				size := get_type_size(typ)
-				g.writeln('  mov ${get_size_str(size)} ptr [rdx], ${get_register(.rax, size)}')
+				g.writeln('  mov ${get_size_str(size)} ptr [rdx], ${get_register(.rax,
+					size)}')
 			}
 		}
 		ast.ExprStmt {
@@ -180,7 +183,9 @@ fn (mut g Gen) gen_lval(expr ast.Expr) ast.Type {
 			return if typ := g.globalscope.types[expr.name] {
 				typ
 			} else {
-				ast.Type{base: ast.Numerical.int}
+				ast.Type{
+					base: ast.Numerical.int
+				}
 			}
 		}
 		ast.DerefExpr {
@@ -189,7 +194,9 @@ fn (mut g Gen) gen_lval(expr ast.Expr) ast.Type {
 		}
 		else {}
 	}
-	return ast.Type{base: ast.Numerical.int}
+	return ast.Type{
+		base: ast.Numerical.int
+	}
 }
 
 fn (mut g Gen) gen_load(dst Register, src string, typ ast.Type) {
@@ -245,7 +252,7 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 			g.writeln('  mov rbx, rax')
 			g.writeln('  mov rax, 0')
 			reglen := if expr.args.len > 6 { 6 } else { expr.args.len }
-			for i in 0..reglen {
+			for i in 0 .. reglen {
 				g.writeln('  pop ${regs[i]}')
 			}
 			g.writeln('  call rbx')
@@ -272,12 +279,19 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 			g.gen_load(.rax, 'rbp - $offset', typ)
 		}
 		ast.GvarLiteral {
-			typ := if typ_ := g.globalscope.types[expr.name] { typ_ } else { ast.Type{base: ast.Numerical.int} }
+			typ := if typ_ := g.globalscope.types[expr.name] {
+				typ_
+			} else {
+				ast.Type{
+					base: ast.Numerical.int
+				}
+			}
 			g.gen_load(.rax, '$expr.name', typ)
 		}
 		ast.SizeofExpr {
 			typ := expr as ast.Type
-			size := get_type_size(typ) eprintln(typ)
+			size := get_type_size(typ)
+			eprintln(typ)
 			g.writeln('  mov rax, $size')
 		}
 		ast.TernaryExpr {
@@ -323,7 +337,8 @@ pub fn (mut g Gen) gen_unary(expr ast.UnaryExpr) {
 
 // TODO unsigned
 pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
-	if expr.op in [.plus, .minus, .mul, .div, .mod, .aand, .aor, .xor, .eq, .ne, .gt, .ge, .lt, .le] {
+	if expr.op in [.plus, .minus, .mul, .div, .mod, .aand, .aor, .xor, .eq, .ne, .gt, .ge, .lt,
+		.le] {
 		g.gen_expr(expr.right)
 		g.writeln('  push rax')
 		g.gen_expr(expr.left)
@@ -373,14 +388,6 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 			g.writeln('  set$cmd al')
 			g.writeln('  movzx eax, al')
 		}
-		.assign {
-			typ := g.gen_lval(expr.left)
-			g.writeln('  push rax')
-			g.gen_expr(expr.right)
-			g.writeln('  pop rdx')
-			size := get_type_size(typ)
-			g.writeln('  mov ${get_size_str(size)} ptr [rdx], ${get_register(.rax, size)}')
-		}
 		.comma {
 			g.gen_expr(expr.left)
 			g.gen_expr(expr.right)
@@ -426,6 +433,14 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 			g.writeln('.L.ortrue.$label:')
 			g.writeln('  mov rax, 1')
 			g.writeln('.L.orend.$label:')
+		}
+		.assign {
+			typ := g.gen_lval(expr.left)
+			g.writeln('  push rax')
+			g.gen_expr(expr.right)
+			g.writeln('  pop rdx')
+			size := get_type_size(typ)
+			g.writeln('  mov ${get_size_str(size)} ptr [rdx], ${get_register(.rax, size)}')
 		}
 		else {}
 	}
