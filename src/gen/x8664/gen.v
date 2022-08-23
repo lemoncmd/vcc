@@ -12,6 +12,8 @@ mut:
 	curscope    int = -1
 	labelid     int
 	strings     []string
+	breakpoint []string
+	contpoint []string
 pub mut:
 	out strings.Builder
 }
@@ -123,6 +125,8 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 		}
 		ast.ForStmt {
 			label := g.get_label()
+			g.breakpoint << '.L.forend.$label'
+			g.contpoint << '.L.fornext.$label'
 			match stmt.first {
 				ast.DeclStmt {}
 				ast.ExprStmt {
@@ -133,14 +137,20 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 			g.writeln('  jmp .L.forcond.$label')
 			g.writeln('.L.forstmt.$label:')
 			g.gen_stmt(stmt.stmt)
+			g.writeln('.L.fornext.$label:')
 			g.gen_expr(stmt.next)
 			g.writeln('.L.forcond.$label:')
 			g.gen_expr(stmt.cond)
 			g.writeln('  test rax, rax')
 			g.writeln('  jne .L.forstmt.$label')
+			g.writeln('.L.forend.$label:')
+			g.breakpoint.pop()
+			g.contpoint.pop()
 		}
 		ast.WhileStmt {
 			label := g.get_label()
+			g.breakpoint << '.L.whileend.$label'
+			g.contpoint << '.L.whilecond.$label'
 			g.writeln('.L.whilecond.$label:')
 			g.gen_expr(stmt.cond)
 			g.writeln('  test rax, rax')
@@ -148,14 +158,28 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 			g.gen_stmt(stmt.stmt)
 			g.writeln('  jmp .L.whilecond.$label')
 			g.writeln('.L.whileend.$label:')
+			g.breakpoint.pop()
+			g.contpoint.pop()
 		}
 		ast.DoStmt {
 			label := g.get_label()
+			g.breakpoint << '.L.doend.$label'
+			g.contpoint << '.L.docond.$label'
 			g.writeln('.L.dostart.$label:')
 			g.gen_stmt(stmt.stmt)
+			g.writeln('.L.docond.$label:')
 			g.gen_expr(stmt.cond)
 			g.writeln('  test rax, rax')
 			g.writeln('  jne .L.dostart.$label')
+			g.writeln('.L.doend.$label:')
+			g.breakpoint.pop()
+			g.contpoint.pop()
+		}
+		ast.BreakStmt {
+			g.writeln('  jmp $g.breakpoint.last()')
+		}
+		ast.ContinueStmt {
+			g.writeln('  jmp $g.contpoint.last()')
 		}
 		ast.DeclStmt {
 			for decl in stmt.decls {
