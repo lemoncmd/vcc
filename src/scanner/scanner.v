@@ -382,7 +382,7 @@ fn (mut s Scanner) scan_number() token.Token {
 	mut is_octal := false
 	if s.program[s.pos] == `0` {
 		s.next()
-		if s.program[s.pos] == `x` {
+		if s.program[s.pos] in [`x`, `X`] {
 			s.next()
 			for s.pos < len && s.program[s.pos].is_hex_digit() {
 				s.next()

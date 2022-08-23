@@ -296,10 +296,17 @@ pub fn (mut g Gen) gen_unary(expr ast.UnaryExpr) {
 		.aand {
 			g.gen_lval(expr.left)
 		}
+		.lnot {
+			g.gen_expr(expr.left)
+			g.writeln('  cmp rax, 0')
+			g.writeln('  sete al')
+			g.writeln('  movzx eax, al')
+		}
 		else {}
 	}
 }
 
+// TODO unsigned
 pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 	if expr.op in [.plus, .minus, .mul, .div, .mod, .aand, .aor, .eq, .ne, .gt, .ge, .lt, .le] {
 		g.gen_expr(expr.right)
@@ -359,6 +366,20 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 		.comma {
 			g.gen_expr(expr.left)
 			g.gen_expr(expr.right)
+		}
+		.lshift {
+			g.gen_expr(expr.right)
+			g.writeln('  push rax')
+			g.gen_expr(expr.left)
+			g.writeln('  pop rcx')
+			g.writeln('  shl rax, cl')
+		}
+		.rshift {
+			g.gen_expr(expr.right)
+			g.writeln('  push rax')
+			g.gen_expr(expr.left)
+			g.writeln('  pop rcx')
+			g.writeln('  sar rax, cl')
 		}
 		else {}
 	}
