@@ -11,6 +11,7 @@ mut:
 	curfn_scope []ast.ScopeTable
 	curscope    int = -1
 	labelid int
+	strings     []string
 pub mut:
 	out strings.Builder
 }
@@ -82,6 +83,11 @@ pub fn (mut g Gen) gen() {
 		g.writeln('  mov rsp, rbp')
 		g.writeln('  pop rbp')
 		g.writeln('  ret')
+	}
+	g.writeln('.data')
+	for i, str in g.strings {
+		g.writeln('.L.string.$i:')
+		g.writeln('  .string "$str"')
 	}
 }
 
@@ -246,6 +252,10 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 		}
 		ast.IntegerLiteral {
 			g.writeln('  mov rax, $expr.val')
+		}
+		ast.StringLiteral {
+			g.writeln('  mov rax, OFFSET FLAT:.L.string.$g.strings.len')
+			g.strings << expr.val
 		}
 		ast.BinaryExpr {
 			g.gen_binary(expr)

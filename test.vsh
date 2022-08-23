@@ -1,6 +1,6 @@
 fn try(expected int, input string) {
 	//		'int printf(char*,...);int foo();int bar(int,int);int hw();void alloc4(int**,int,int,int,int);' +
-	write_file('tmp.c', 'int foo();int bar(int,int);void alloc4(int**,int,int,int,int);' + input) or { panic('could not write file') }
+	write_file('tmp.c', 'int printf(char*,...);int foo();int bar(int,int);void alloc4(int**,int,int,int,int);' + input) or { panic('could not write file') }
 	system('./vcc tmp.c > tmp.s')
 	system('gcc -fno-pie -no-pie -o tmp tmp.s tmp2.o') // todo: link tmp2.o
 	actual := system('./tmp') % 256
@@ -17,7 +17,7 @@ fn main() {
 
 	file.write('
 extern void *malloc(unsigned long int size);
-//extern int printf(const char * format,...);
+extern int printf(const char * format,...);
 int foo(){return 21;}
 int bar(int i, int j){return i+j;}
 //int hw(){printf("Hello, world!\\n");}
