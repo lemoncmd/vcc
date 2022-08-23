@@ -280,6 +280,17 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 			size := get_type_size(typ) eprintln(typ)
 			g.writeln('  mov rax, $size')
 		}
+		ast.TernaryExpr {
+			label := g.get_label()
+			g.gen_expr(expr.cond)
+			g.writeln('  test rax, rax')
+			g.writeln('  je .L.ifelse.$label')
+			g.gen_expr(expr.left)
+			g.writeln('  jmp .L.ifend.$label')
+			g.writeln('.L.ifelse.$label:')
+			g.gen_expr(expr.right)
+			g.writeln('.L.ifend.$label:')
+		}
 		else {}
 	}
 }

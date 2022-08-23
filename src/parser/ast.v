@@ -18,6 +18,8 @@ pub fn (mut p Parser) top() {
 					p.token_err('Illegal storage class specifier')
 				}
 				p.funs[decls[0].name] = p.function(decls[0].typ)
+				p.globalscope.types[decls[0].name] = decls[0].typ
+				p.globalscope.storages[decls[0].name] = decls[0].storage
 			}
 			.semi {
 				for decl in decls {
