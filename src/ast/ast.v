@@ -164,6 +164,7 @@ pub struct DerefExpr {
 pub mut:
 	left Expr
 	typ  Type
+	decl Declarator
 }
 
 pub struct SelectorExpr {

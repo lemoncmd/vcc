@@ -122,9 +122,14 @@ fn (mut p Parser) read_type_function() ast.Function {
 			p.token_err('Invalid storage class specifier')
 		}
 		decl := p.read_type_extend(base, storage)[0]
+		mut typ := decl.typ
+		if typ.decls.len != 0 && typ.decls.last() is ast.Array {
+			typ.decls.pop()
+			typ.decls << ast.Pointer{}
+		}
 		args << ast.FuncArgs{
 			name: decl.name
-			typ: decl.typ
+			typ: typ
 		}
 		if p.tok.kind != .comma {
 			break

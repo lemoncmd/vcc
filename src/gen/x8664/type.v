@@ -37,6 +37,8 @@ fn get_type_size(typ ast.Type) int {
 			}
 		}
 	}
+	//println(typ)
+	//println(size)
 	// TODO incomplete
 	if size == 0 {
 		size = 1

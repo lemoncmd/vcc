@@ -114,7 +114,8 @@ fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 			name := (expr as ast.LvarLiteral).name
 			for scopeid != -1 {
 				scope := c.curfn_scope[scopeid]
-				if typ := scope.types[name] {
+				if mut typ := scope.types[name] {
+					typ.decls = typ.decls.clone()
 					return typ
 				}
 				scopeid = scope.parent
@@ -163,11 +164,11 @@ fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 		ast.DerefExpr {
 			mut expr_ := expr as ast.DerefExpr
 			mut typ := c.expr(mut expr_.left)
-			if typ.decls.len == 0 || typ.decls.last() !is ast.Pointer {
+			if typ.decls.len == 0 || typ.decls.last() is ast.Function {
 				panic('Cannot dereference type which is not a pointer')
 			}
 			typ.decls = typ.decls.clone()
-			typ.decls.pop()
+			expr_.decl = typ.decls.pop()
 			expr_.typ = typ
 			expr = expr_
 			return typ
@@ -208,12 +209,9 @@ fn (mut c Checker) binary(mut expr ast.BinaryExpr) ast.Type {
 	}
 	if expr.op == .plus {
 		if lhs.decls.len != 0 {
-			if lhs.decls.last() !is ast.Function {
-				lhs.decls.pop()
-			}
 			mut sizeoftyp := lhs
 			sizeoftyp.decls = sizeoftyp.decls.clone()
-			lhs.decls << ast.Pointer{}
+			sizeoftyp.decls.pop()
 			expr.right = ast.BinaryExpr{
 				op: .mul
 				left: expr.right
@@ -222,12 +220,9 @@ fn (mut c Checker) binary(mut expr ast.BinaryExpr) ast.Type {
 			return lhs
 		}
 		if rhs.decls.len != 0 {
-			if rhs.decls.last() !is ast.Function {
-				rhs.decls.pop()
-			}
 			mut sizeoftyp := rhs
 			sizeoftyp.decls = sizeoftyp.decls.clone()
-			rhs.decls << ast.Pointer{}
+			sizeoftyp.decls.pop()
 			expr.left = ast.BinaryExpr{
 				op: .mul
 				left: expr.left

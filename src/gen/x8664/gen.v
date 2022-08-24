@@ -52,7 +52,7 @@ pub fn (mut g Gen) gen() {
 			g.writeln('.global $name')
 		}
 		g.writeln('$name:')
-		g.writeln('.zero 8')
+		g.writeln('.zero ${get_type_size(typ)}')
 	}
 	g.writeln('.text')
 	for name, func in g.funs {
@@ -232,7 +232,7 @@ fn (mut g Gen) gen_lval(expr ast.Expr) ast.Type {
 }
 
 fn (mut g Gen) gen_load(dst Register, src string, typ ast.Type) {
-	if typ.decls.len != 0 && typ.decls.last() is ast.Pointer {
+	if typ.decls.len != 0 && typ.decls.last() in [ast.Pointer, ast.Array] {
 		g.writeln('  mov $dst, qword ptr [$src]')
 	}
 	if typ.decls.len == 0 {
@@ -264,7 +264,7 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 			} else {
 				get_pointer_type_size(typ)
 			}
-			g.writeln(if expr.op == .plus {
+			g.writeln(if expr.op == .inc {
 				'  add $size ptr [rax], $incr'
 			} else {
 				'  sub $size ptr [rax], $incr'
@@ -303,12 +303,23 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 			g.gen_unary(expr)
 		}
 		ast.DerefExpr {
-			g.gen_expr(expr.left)
-			g.gen_load(.rax, 'rax', expr.typ)
+			if expr.decl is ast.Array {
+				g.gen_expr(expr.left)
+				if expr.typ.decls.len == 0 {
+					g.gen_load(.rax, 'rax', expr.typ)
+				}
+			} else {
+				g.gen_expr(expr.left)
+				g.gen_load(.rax, 'rax', expr.typ)
+			}
 		}
 		ast.LvarLiteral {
 			typ, _, offset := g.find_lvar(expr.name)
-			g.gen_load(.rax, 'rbp - $offset', typ)
+			if typ.decls.len != 0 && typ.decls.last() is ast.Array {
+				g.writeln('  lea rax, [rbp - $offset]')
+			} else {
+				g.gen_load(.rax, 'rbp - $offset', typ)
+			}
 		}
 		ast.GvarLiteral {
 			typ := if typ_ := g.globalscope.types[expr.name] {
@@ -318,7 +329,11 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 					base: ast.Numerical.int
 				}
 			}
-			g.gen_load(.rax, '$expr.name', typ)
+			if typ.decls.len != 0 && typ.decls.last() is ast.Array {
+				g.writeln('  lea rax, [$expr.name]')
+			} else {
+				g.gen_load(.rax, '$expr.name', typ)
+			}
 		}
 		ast.SizeofExpr {
 			typ := expr as ast.Type
