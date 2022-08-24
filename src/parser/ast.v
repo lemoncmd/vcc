@@ -17,12 +17,18 @@ pub fn (mut p Parser) top() {
 				if decls[0].storage != .default {
 					p.token_err('Illegal storage class specifier')
 				}
+				if decls[0].name in p.funs {
+					p.token_err('function `${decls[0].name}` is already defined')
+				}
 				p.funs[decls[0].name] = p.function(decls[0].typ)
 				p.globalscope.types[decls[0].name] = decls[0].typ
 				p.globalscope.storages[decls[0].name] = decls[0].storage
 			}
 			.semi {
 				for decl in decls {
+					if decl.name in p.globalscope.types {
+						p.token_err('global variable `$decl.name` is already declared')
+					}
 					p.globalscope.types[decl.name] = decl.typ
 					p.globalscope.storages[decl.name] = decl.storage
 				}
@@ -277,6 +283,9 @@ fn (mut p Parser) declaration() ast.Stmt {
 	for {
 		// TODO storage class
 		extend := p.read_type_extend(base_typ, storage)[0] or { break }
+		if extend.name in p.curscopes[p.curscope].types {
+			p.token_err('local variable `$extend.name` is already declared')
+		}
 		p.curscopes[p.curscope].types[extend.name] = extend.typ
 		p.curscopes[p.curscope].storages[extend.name] = extend.storage
 		if p.tok.kind == .assign {
