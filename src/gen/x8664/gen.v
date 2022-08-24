@@ -205,6 +205,13 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 			g.writeln('  jmp .L.return.$g.curfn_name')
 		}
 		ast.EmptyStmt {}
+		ast.LabelStmt {
+			g.writeln('.L.label.$stmt.name:')
+			g.gen_stmt(stmt.stmt)
+		}
+		ast.GotoStmt {
+			g.writeln('  jmp .L.label.$stmt.name')
+		}
 		else {
 			panic('unsupported stmt: $stmt')
 		}
