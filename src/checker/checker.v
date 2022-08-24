@@ -7,15 +7,28 @@ pub struct Checker {
 mut:
 	curfn_scope []ast.ScopeTable
 	curscope    int = -1
+	labels map[string]Label
 pub mut:
 	funs map[string]ast.FunctionDecl
 }
 
+struct Label {
+mut:
+	defined bool
+	used bool
+}
+
 pub fn (mut c Checker) top() {
 	for _, mut func in c.funs {
+		c.labels = map[string]Label{}
 		c.curfn_scope = func.scopes
 		c.curscope = -1
 		c.stmt(mut func.body)
+		for name, label in c.labels {
+			if label.used && !label.defined {
+				panic('label $name is not defined')
+			}
+		}
 	}
 }
 
@@ -65,7 +78,14 @@ fn (mut c Checker) stmt(mut stmt ast.Stmt) {
 			c.curscope = parent
 			stmt = stmt_
 		}
-		ast.GotoStmt {}
+		ast.GotoStmt {
+			stmt_ := stmt as ast.GotoStmt
+			if stmt_.name in c.labels {
+				c.labels[stmt_.name].used = true
+			} else {
+				c.labels[stmt_.name] = Label{used: true}
+			}
+		}
 		ast.IfStmt {
 			mut stmt_ := stmt as ast.IfStmt
 			c.expr(mut stmt_.cond)
@@ -73,7 +93,19 @@ fn (mut c Checker) stmt(mut stmt ast.Stmt) {
 			c.stmt(mut stmt_.else_stmt)
 			stmt = stmt_
 		}
-		ast.LabelStmt {}
+		ast.LabelStmt {
+			mut stmt_ := stmt as ast.LabelStmt
+			if stmt_.name in c.labels {
+				if c.labels[stmt_.name].defined {
+					panic('label $stmt_.name is already defined')
+				}
+				c.labels[stmt_.name].defined = true
+			} else {
+				c.labels[stmt_.name] = Label{defined: true}
+			}
+			c.stmt(mut stmt_.stmt)
+			stmt = stmt_
+		}
 		ast.ReturnStmt {
 			mut stmt_ := stmt as ast.ReturnStmt
 			c.expr(mut stmt_.expr)

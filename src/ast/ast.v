@@ -84,6 +84,7 @@ pub mut:
 pub struct LabelStmt {
 pub:
 	name string
+pub mut:
 	stmt Stmt
 }
 
