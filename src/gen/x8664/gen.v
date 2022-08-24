@@ -204,6 +204,7 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 			g.gen_expr(stmt.expr)
 			g.writeln('  jmp .L.return.$g.curfn_name')
 		}
+		ast.EmptyStmt {}
 		else {
 			panic('unsupported stmt: $stmt')
 		}
