@@ -138,8 +138,9 @@ fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 			}
 		}
 		ast.GvarLiteral {
-			mut typ := c.globalscope.types[(expr as ast.GvarLiteral).name] or {
-				panic('Global variable not found')
+			name := (expr as ast.GvarLiteral).name
+			mut typ := c.globalscope.types[name] or {
+				panic('Global variable $name not found')
 			}
 			typ.decls = typ.decls.clone()
 			return typ

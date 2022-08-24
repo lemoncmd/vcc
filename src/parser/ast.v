@@ -290,7 +290,7 @@ fn (mut p Parser) declaration() ast.Stmt {
 		p.curscopes[p.curscope].storages[extend.name] = extend.storage
 		if p.tok.kind == .assign {
 			p.next()
-			expr := p.expr()
+			expr := p.assign()
 			inits << ast.Decl{
 				name: extend.name
 				init: expr
