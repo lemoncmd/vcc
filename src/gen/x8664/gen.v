@@ -355,7 +355,6 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 		ast.SizeofExpr {
 			typ := expr as ast.Type
 			size := get_type_size(typ)
-			eprintln(typ)
 			g.writeln('  mov rax, $size')
 		}
 		ast.TernaryExpr {

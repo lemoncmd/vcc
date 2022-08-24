@@ -71,7 +71,7 @@ void alloc4(int**p, int a, int b, int c, int d){*p=malloc(16);**p=a;*(*p+1)=b;*(
 	try(21, 'int fib(int);int main(){return fib(7);}int fib(int n){if(n>1)return fib(n-1)+fib(n-2);else return 1;}')
 	try(23, 'int hoge(int,int);int main(){return hoge(4,5);}int hoge(int n,int m){if(n>m)return 12;return 23;}')
 	try(3, 'int main(){int x;int *y;x=3;y=&x;return *y;}')
-	//	try(3, 'int main(){int x;int y;int *z;x=3;y=5;z=&y+1;return *z;}')
+	try(3, 'int main(){int x;int y;int *z;x=3;y=5;z=&y+1;return *z;}')
 	try(3, 'int main(){int x;int *y;y=&x;*y=3;return x;}')
 	try(4, 'int main(){int *p;alloc4(&p, 1, 2, 4, 8);int *q;q=p+2;return *q;}')
 	try(8, 'int main(){int *p;alloc4(&p, 1, 2, 4, 8);int *q;q=p+3;return *q;}')

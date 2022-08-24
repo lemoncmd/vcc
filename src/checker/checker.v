@@ -217,6 +217,9 @@ fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 			expr = expr_
 			return typ
 		}
+		ast.GenericExpr {
+			// TODO
+		}
 	}
 	return ast.Type{
 		base: ast.Numerical.int

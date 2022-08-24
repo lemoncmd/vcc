@@ -225,8 +225,24 @@ fn (mut p Parser) mul() ast.Expr {
 }
 
 fn (mut p Parser) cast() ast.Expr {
-	mut node := p.unary() // TODO cast
-	return node
+	if p.tok.kind == .lpar {
+		p.next()
+		if p.tok.kind.is_type_keyword() {//TODO
+			typ := p.read_type_name()
+			p.check(.rpar)
+			p.next()
+			return ast.CastExpr{
+				typ: typ
+				left: p.unary()
+			}
+		} else {
+			expr := p.expr()
+			p.check(.rpar)
+			p.next()
+			return expr
+		}
+	}
+	return p.unary()
 }
 
 fn (mut p Parser) unary() ast.Expr {
@@ -399,6 +415,31 @@ fn (mut p Parser) primary() ast.Expr {
 			p.next()
 			return ast.StringLiteral{
 				val: str
+			}
+		}
+		.k_generic {
+			p.next()
+			p.check(.lpar)
+			p.next()
+			expr := p.assign()
+			mut cases := []ast.GenericCase{}
+			for p.tok.kind != .rpar {
+				typ := if p.tok.kind == .k_default {
+					p.next()
+					ast.GenericAssociation(ast.GenericDefault{})
+				} else {
+					ast.GenericAssociation(p.read_type_name())
+				}
+				p.check(.colon)
+				p.next()
+				cases << ast.GenericCase {
+					typ: typ
+					expr: p.assign()
+				}
+			}
+			return ast.GenericExpr {
+				expr: expr
+				cases: cases
 			}
 		}
 		else {

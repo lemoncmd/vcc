@@ -41,6 +41,7 @@ pub type Expr = BinaryExpr
 	| StringLiteral
 	| TernaryExpr
 	| UnaryExpr
+	| GenericExpr
 
 pub struct IfStmt {
 pub mut:
@@ -189,6 +190,22 @@ pub mut:
 	left Expr
 	args []Expr
 }
+
+pub struct GenericExpr {
+pub:
+	expr Expr
+	cases []GenericCase
+}
+
+pub struct GenericCase {
+pub:
+	typ GenericAssociation
+	expr Expr
+}
+
+type GenericAssociation = GenericDefault | Type
+
+pub struct GenericDefault {}
 
 pub struct IntegerLiteral {
 pub:

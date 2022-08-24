@@ -14,6 +14,18 @@ struct RTEParams {
 	consume_comma bool
 }
 
+fn (mut p Parser) read_type_name() ast.Type {
+	base, storage := p.read_base_type()
+	if storage != .default {
+		p.token_err('unexpected storage class specifier')
+	}
+	decl := p.read_type_extend(base, storage)[0]
+	if decl.name != '' {
+		p.token_err('unexpected name')
+	}
+	return decl.typ
+}
+
 fn (mut p Parser) read_type_extend(base ast.Type, storage ast.Storage, params RTEParams) []DeclPair {
 	mut pairs := []DeclPair{}
 	for p.tok.kind != .semi {
