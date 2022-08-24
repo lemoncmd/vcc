@@ -50,7 +50,7 @@ pub mut:
 }
 
 pub struct ForStmt {
-pub:
+pub mut:
 	first Stmt
 	cond  Expr
 	next  Expr
@@ -59,13 +59,13 @@ pub:
 }
 
 pub struct WhileStmt {
-pub:
+pub mut:
 	cond Expr
 	stmt Stmt
 }
 
 pub struct DoStmt {
-pub:
+pub mut:
 	cond Expr
 	stmt Stmt
 }
@@ -128,13 +128,14 @@ pub mut:
 }
 
 pub struct DeclStmt {
-pub:
+pub mut:
 	decls []Decl
 }
 
 pub struct Decl {
 pub:
 	name string
+pub mut:
 	init Init
 }
 

@@ -199,7 +199,9 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 			g.gen_expr(stmt.expr)
 			g.writeln('  jmp .L.return.$g.curfn_name')
 		}
-		else {}
+		else {
+			panic('unsupported stmt: $stmt')
+		}
 	}
 }
 
@@ -211,7 +213,7 @@ fn (mut g Gen) gen_lval(expr ast.Expr) ast.Type {
 			return typ
 		}
 		ast.GvarLiteral {
-			g.writeln('  mov rax, OFFSET FLAT:$expr.name')
+			g.writeln('  lea rax, [$expr.name]')
 			return if typ := g.globalscope.types[expr.name] {
 				typ
 			} else {
@@ -224,7 +226,9 @@ fn (mut g Gen) gen_lval(expr ast.Expr) ast.Type {
 			g.gen_expr(expr.left)
 			return expr.typ
 		}
-		else {}
+		else {
+			panic('unexpected left value: $expr')
+		}
 	}
 	return ast.Type{
 		base: ast.Numerical.int
@@ -232,7 +236,7 @@ fn (mut g Gen) gen_lval(expr ast.Expr) ast.Type {
 }
 
 fn (mut g Gen) gen_load(dst Register, src string, typ ast.Type) {
-	if typ.decls.len != 0 && typ.decls.last() in [ast.Pointer, ast.Array] {
+	if typ.decls.len != 0 && typ.decls.last() is ast.Pointer {
 		g.writeln('  mov $dst, qword ptr [$src]')
 	}
 	if typ.decls.len == 0 {
@@ -293,7 +297,7 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 			g.writeln('  mov rax, $expr.val')
 		}
 		ast.StringLiteral {
-			g.writeln('  mov rax, OFFSET FLAT:.L.string.$g.strings.len')
+			g.writeln('  lea rax, [.L.string.$g.strings.len]')
 			g.strings << expr.val
 		}
 		ast.BinaryExpr {
@@ -352,7 +356,9 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 			g.gen_expr(expr.right)
 			g.writeln('.L.ifend.$label:')
 		}
-		else {}
+		else {
+			panic('unsupported expr $expr')
+		}
 	}
 }
 
@@ -533,6 +539,8 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 			g.writeln('  add ${get_size_str(size)} ptr [rdx], cl')
 			g.gen_load(.rax, 'rdx', typ)
 		}
-		else {}
+		else {
+			panic('unsupported binary expr $expr')
+		}
 	}
 }

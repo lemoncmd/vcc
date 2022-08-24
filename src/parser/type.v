@@ -16,7 +16,7 @@ struct RTEParams {
 
 fn (mut p Parser) read_type_extend(base ast.Type, storage ast.Storage, params RTEParams) []DeclPair {
 	mut pairs := []DeclPair{}
-	for {
+	for p.tok.kind != .semi {
 		mut typ := base
 		typ.decls = []ast.Declarator{}
 		mut types, name := p.read_type_internal()

@@ -34,16 +34,34 @@ fn (mut c Checker) stmt(mut stmt ast.Stmt) {
 		ast.BreakStmt {}
 		ast.CaseStmt {}
 		ast.ContinueStmt {}
-		ast.DeclStmt {}
+		ast.DeclStmt {
+			mut stmt_ := stmt as ast.DeclStmt
+			for mut decl in stmt_.decls {
+				c.init(mut decl.init)
+			}
+			stmt = stmt_
+		}
 		ast.DefaultStmt {}
-		ast.DoStmt {}
+		ast.DoStmt {
+			mut stmt_ := stmt as ast.DoStmt
+			c.expr(mut stmt_.cond)
+			c.stmt(mut stmt_.stmt)
+			stmt = stmt_
+		}
 		ast.EmptyStmt {}
 		ast.ExprStmt {
 			mut stmt_ := stmt as ast.ExprStmt
 			c.expr(mut stmt_.expr)
 			stmt = stmt_
 		}
-		ast.ForStmt {}
+		ast.ForStmt {
+			mut stmt_ := stmt as ast.ForStmt
+			c.stmt(mut stmt_.first)
+			c.expr(mut stmt_.cond)
+			c.expr(mut stmt_.next)
+			c.stmt(mut stmt_.stmt)
+			stmt = stmt_
+		}
 		ast.GotoStmt {}
 		ast.IfStmt {
 			mut stmt_ := stmt as ast.IfStmt
@@ -59,7 +77,29 @@ fn (mut c Checker) stmt(mut stmt ast.Stmt) {
 			stmt = stmt_
 		}
 		ast.SwitchStmt {}
-		ast.WhileStmt {}
+		ast.WhileStmt {
+			mut stmt_ := stmt as ast.WhileStmt
+			c.expr(mut stmt_.cond)
+			c.stmt(mut stmt_.stmt)
+			stmt = stmt_
+		}
+	}
+}
+
+fn (mut c Checker) init(mut init ast.Init) {
+	match init {
+		ast.Expr {
+			mut expr := init as ast.Expr
+			c.expr(mut expr)
+			init = expr
+		}
+		[]ast.Init {
+			for mut i_ in init as []ast.Init {
+				mut i := i_
+				c.init(mut i)
+				i_ = i
+			}
+		}
 	}
 }
 
@@ -182,7 +222,7 @@ fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 fn extend(lhs ast.Type, rhs ast.Type) ast.Type {
 	if lhs.decls.len != 0 || rhs.decls.len != 0 || lhs.base !is ast.Numerical
 		|| rhs.base !is ast.Numerical {
-		panic('Internal type error')
+			panic('Internal type error\nlhs:\n$lhs\nrhs:\n$rhs')
 	}
 	lhs_num := lhs.base as ast.Numerical
 	rhs_num := rhs.base as ast.Numerical
@@ -235,6 +275,17 @@ fn (mut c Checker) binary(mut expr ast.BinaryExpr) ast.Type {
 	if expr.op == .minus {
 		if lhs.decls.len != 0 && rhs.decls.len != 0 {
 			// TODO
+		}
+		if lhs.decls.len != 0 {
+			mut sizeoftyp := lhs
+			sizeoftyp.decls = sizeoftyp.decls.clone()
+			sizeoftyp.decls.pop()
+			expr.right = ast.BinaryExpr{
+				op: .mul
+				left: expr.right
+				right: ast.SizeofExpr(sizeoftyp)
+			}
+			return lhs
 		}
 		return extend(lhs, rhs)
 	}
