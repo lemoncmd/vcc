@@ -50,6 +50,8 @@ pub mut:
 }
 
 pub struct ForStmt {
+pub:
+	id int
 pub mut:
 	first Stmt
 	cond  Expr

@@ -125,9 +125,42 @@ fn (mut p Parser) stmt() ast.Stmt {
 			p.check(.lpar)
 			p.next()
 			mut first := ast.Stmt(ast.EmptyStmt{})
+			scopeid := p.curscopes.len
+			parent_scopeid := p.curscope
+			mut scope := ast.ScopeTable{
+				parent: parent_scopeid
+			}
+			p.curscopes << scope
+			p.curscope = scopeid
 			if p.tok.kind.is_type_keyword() { // TODO definition
 				base, storage := p.read_base_type()
-				typ := p.read_type_extend(base, storage)[0]
+				mut inits := []ast.Decl{}
+				for {
+					// TODO storage class
+					extend := p.read_type_extend(base, storage)[0] or { break }
+					if extend.name in p.curscopes[p.curscope].types {
+						p.token_err('local variable `$extend.name` is already declared')
+					}
+					p.curscopes[p.curscope].types[extend.name] = extend.typ
+					p.curscopes[p.curscope].storages[extend.name] = extend.storage
+					if p.tok.kind == .assign {
+						p.next()
+						expr := p.assign()
+						inits << ast.Decl{
+							name: extend.name
+							init: expr
+						}
+					}
+					if p.tok.kind == .semi {
+						break
+					} else {
+						p.check(.comma)
+						p.next()
+					}
+				}
+				first = ast.DeclStmt{
+					decls: inits
+				}
 			} else if p.tok.kind != .semi {
 				first = ast.ExprStmt{
 					expr: p.expr()
@@ -145,11 +178,14 @@ fn (mut p Parser) stmt() ast.Stmt {
 				}) } else { p.expr() }
 			p.check(.rpar)
 			p.next()
+			stmt := p.stmt()
+			p.curscope = parent_scopeid
 			return ast.ForStmt{
+				id: scopeid
 				first: first
 				cond: cond
 				next: last
-				stmt: p.stmt()
+				stmt: stmt
 			}
 		}
 		.k_while {

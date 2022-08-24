@@ -125,10 +125,14 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 		}
 		ast.ForStmt {
 			label := g.get_label()
+			parent := g.curscope
+			g.curscope = stmt.id
 			g.breakpoint << '.L.forend.$label'
 			g.contpoint << '.L.fornext.$label'
 			match stmt.first {
-				ast.DeclStmt {}
+				ast.DeclStmt {
+					g.gen_stmt(stmt.first)
+				}
 				ast.ExprStmt {
 					g.gen_expr(stmt.first.expr)
 				}
@@ -146,6 +150,7 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 			g.writeln('.L.forend.$label:')
 			g.breakpoint.pop()
 			g.contpoint.pop()
+			g.curscope = parent
 		}
 		ast.WhileStmt {
 			label := g.get_label()

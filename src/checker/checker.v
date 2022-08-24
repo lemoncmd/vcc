@@ -56,10 +56,13 @@ fn (mut c Checker) stmt(mut stmt ast.Stmt) {
 		}
 		ast.ForStmt {
 			mut stmt_ := stmt as ast.ForStmt
+			parent := c.curscope
+			c.curscope = stmt_.id
 			c.stmt(mut stmt_.first)
 			c.expr(mut stmt_.cond)
 			c.expr(mut stmt_.next)
 			c.stmt(mut stmt_.stmt)
+			c.curscope = parent
 			stmt = stmt_
 		}
 		ast.GotoStmt {}
@@ -161,7 +164,7 @@ fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 				}
 				scopeid = scope.parent
 			}
-			panic('Local variable not found')
+			panic('Local variable $name not found')
 		}
 		ast.SelectorExpr {
 			return ast.Type{
