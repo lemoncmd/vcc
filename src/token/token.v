@@ -204,67 +204,65 @@ pub fn (k Kind) str() string {
 	}
 }
 
-[inline]
+@[inline]
 pub fn (k Kind) is_assign() bool {
 	return int(k) >= int(Kind.assign) && int(k) <= int(Kind.rs_assign)
 }
 
-[inline]
+@[inline]
 pub fn (k Kind) is_keyword() bool {
 	return int(k) >= int(Kind.k_alignas)
 }
 
-[inline]
+@[inline]
 pub fn (k Kind) is_type_keyword() bool {
 	return k in [.k_char, .k_const, .k_double, .k_enum, .k_float, .k_int, .k_long, .k_short,
 		.k_signed, .k_struct, .k_union, .k_unsigned, .k_void, .k_bool, .k_complex, .k_imaginary]
 }
 
-pub const (
-	reserves = [
-		'_Alignas',
-		'_Atomic',
-		'_Bool',
-		'_Complex',
-		'_Generic',
-		'_Imaginary',
-		'_Noreturn',
-		'_Static_assert',
-		'_Thread_local',
-		'alignof',
-		'auto',
-		'break',
-		'case',
-		'char',
-		'const',
-		'continue',
-		'default',
-		'do',
-		'double',
-		'else',
-		'enum',
-		'extern',
-		'float',
-		'for',
-		'goto',
-		'if',
-		'inline',
-		'int',
-		'long',
-		'register',
-		'restrict',
-		'return',
-		'short',
-		'signed',
-		'sizeof',
-		'static',
-		'struct',
-		'switch',
-		'typedef',
-		'union',
-		'unsigned',
-		'void',
-		'volatile',
-		'while',
-	]
-)
+pub const reserves = [
+	'_Alignas',
+	'_Atomic',
+	'_Bool',
+	'_Complex',
+	'_Generic',
+	'_Imaginary',
+	'_Noreturn',
+	'_Static_assert',
+	'_Thread_local',
+	'alignof',
+	'auto',
+	'break',
+	'case',
+	'char',
+	'const',
+	'continue',
+	'default',
+	'do',
+	'double',
+	'else',
+	'enum',
+	'extern',
+	'float',
+	'for',
+	'goto',
+	'if',
+	'inline',
+	'int',
+	'long',
+	'register',
+	'restrict',
+	'return',
+	'short',
+	'signed',
+	'sizeof',
+	'static',
+	'struct',
+	'switch',
+	'typedef',
+	'union',
+	'unsigned',
+	'void',
+	'volatile',
+	'while',
+]

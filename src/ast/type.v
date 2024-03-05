@@ -105,7 +105,7 @@ pub mut:
 	table &StructTable
 }
 
-[heap]
+@[heap]
 pub struct StructTable {
 pub mut:
 	defined bool

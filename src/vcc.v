@@ -12,9 +12,9 @@ fn main() {
 	mut s := &scanner.Scanner{program, 0, 1, 0}
 	mut tokens := []token.Token{}
 	for {
-		token := s.scan()
-		tokens << token
-		if token.kind == .eof {
+		tok := s.scan()
+		tokens << tok
+		if tok.kind == .eof {
 			break
 		}
 	}

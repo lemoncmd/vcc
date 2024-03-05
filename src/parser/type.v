@@ -9,7 +9,7 @@ struct DeclPair {
 	name    string
 }
 
-[params]
+@[params]
 struct RTEParams {
 	consume_comma bool
 }
@@ -194,10 +194,10 @@ fn tok2base(tok token.Kind) BaseType4Read {
 	}
 }
 
-[inline; noreturn]
+@[inline; noreturn]
 fn (p Parser) adjective_err(base BaseType4Read, long int, short int, signed int, unsigned int, complex int) {
 	p.token_err('`' + 'long '.repeat(long) + 'short '.repeat(short) + 'signed '.repeat(signed) +
-		'unsigned '.repeat(unsigned) + '_Complex'.repeat(complex) + '$base` is invalid')
+		'unsigned '.repeat(unsigned) + '_Complex'.repeat(complex) + '${base}` is invalid')
 
 	// V BUG with noreturn
 	for {}
@@ -424,7 +424,7 @@ fn (mut p Parser) read_base_type() (ast.Type, ast.Storage) {
 		match p.tok.kind {
 			.k_void, .k_int, .k_char, .k_float, .k_double, .k_bool {
 				if base_typ != .non {
-					p.token_err('Cannot combine `${tok2base(p.tok.kind)}` and `$base_typ`')
+					p.token_err('Cannot combine `${tok2base(p.tok.kind)}` and `${base_typ}`')
 				}
 				base_typ = tok2base(p.tok.kind)
 			}
@@ -648,7 +648,7 @@ fn (mut p Parser) read_struct_type() ast.BaseType {
 		}
 		if table.defined {
 			p.token_err('`' + if which == .k_struct { 'struct' } else { 'union' } +
-				' $name` is already defined')
+				' ${name}` is already defined')
 		}
 	}
 	// register struct

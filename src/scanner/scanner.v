@@ -10,11 +10,11 @@ mut:
 	lpos    int
 }
 
-[noreturn]
+@[noreturn]
 fn (s &Scanner) error(str string) {
 	program := s.program.split_into_lines()[s.line - 1]
 	here := [' '].repeat(s.lpos).join('')
-	eprintln('$s.line:$s.lpos: $str\n$program\n$here^here')
+	eprintln('${s.line}:${s.lpos}: ${str}\n${program}\n${here}^here')
 	exit(1)
 }
 
@@ -25,7 +25,7 @@ fn (s &Scanner) is_token_string(needle string) bool {
 	return read == needle && !after.is_letter() && !after.is_digit() && after != `_`
 }
 
-fn hex_to_num(b byte) int {
+fn hex_to_num(b u8) int {
 	if b >= `0` && b <= `9` {
 		return int(b - `0`)
 	}
@@ -259,9 +259,11 @@ pub fn (mut s Scanner) scan() token.Token {
 				ident := s.scan_ident()
 				for i, res in token.reserves {
 					if res == ident.str {
-						kind := token.Kind(i + int(token.Kind.k_alignas))
-						token := s.create_token(kind, res)
-						return token
+						kind := token.Kind.from(i + int(token.Kind.k_alignas)) or {
+							s.error('Cannot tokenize')
+						}
+						tok := s.create_token(kind, res)
+						return tok
 					}
 				}
 				if ident.str in ['u8', 'u', 'U', 'L'] {
@@ -370,7 +372,7 @@ fn (mut s Scanner) scan_char() token.Token {
 	}
 	if s.program[s.pos] != `'` {
 		got := s.program[s.pos].str()
-		s.error('Expected \' but got $got')
+		s.error('Expected \' but got ${got}')
 	}
 	s.next()
 	return s.create_token(.num, num.str())

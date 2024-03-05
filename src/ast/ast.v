@@ -33,6 +33,7 @@ pub type Expr = BinaryExpr
 	| CrementExpr
 	| DerefExpr
 	| FloatLiteral
+	| GenericExpr
 	| GvarLiteral
 	| IntegerLiteral
 	| LvarLiteral
@@ -41,7 +42,6 @@ pub type Expr = BinaryExpr
 	| StringLiteral
 	| TernaryExpr
 	| UnaryExpr
-	| GenericExpr
 
 pub struct IfStmt {
 pub mut:
@@ -194,13 +194,13 @@ pub mut:
 
 pub struct GenericExpr {
 pub:
-	expr Expr
+	expr  Expr
 	cases []GenericCase
 }
 
 pub struct GenericCase {
 pub:
-	typ GenericAssociation
+	typ  GenericAssociation
 	expr Expr
 }
 

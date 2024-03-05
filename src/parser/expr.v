@@ -227,7 +227,7 @@ fn (mut p Parser) mul() ast.Expr {
 fn (mut p Parser) cast() ast.Expr {
 	if p.tok.kind == .lpar {
 		p.next()
-		if p.tok.kind.is_type_keyword() {//TODO
+		if p.tok.kind.is_type_keyword() { // TODO
 			typ := p.read_type_name()
 			p.check(.rpar)
 			p.next()
@@ -432,12 +432,12 @@ fn (mut p Parser) primary() ast.Expr {
 				}
 				p.check(.colon)
 				p.next()
-				cases << ast.GenericCase {
+				cases << ast.GenericCase{
 					typ: typ
 					expr: p.assign()
 				}
 			}
-			return ast.GenericExpr {
+			return ast.GenericExpr{
 				expr: expr
 				cases: cases
 			}

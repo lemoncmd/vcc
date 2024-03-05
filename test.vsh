@@ -7,9 +7,9 @@ fn try(expected int, input string) {
 	system('gcc -fno-pie -no-pie -o tmp tmp.s tmp2.o') // todo: link tmp2.o
 	actual := system('./tmp') % 256
 	if actual == expected {
-		println('$input => $actual')
+		println('${input} => ${actual}')
 	} else {
-		println('$input => $expected expected, but got $actual')
+		println('${input} => ${expected} expected, but got ${actual}')
 		exit(1)
 	}
 }

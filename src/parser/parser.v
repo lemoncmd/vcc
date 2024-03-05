@@ -24,21 +24,21 @@ fn (mut p Parser) next() {
 	p.tok = p.tokens[p.pos]
 }
 
-[noreturn]
-fn unexp_err(token token.Token, s string) {
-	eprintln('$token.line:$token.pos: $s')
+@[noreturn]
+fn unexp_err(tok token.Token, s string) {
+	eprintln('${tok.line}:${tok.pos}: ${s}')
 	exit(1)
 }
 
-[noreturn]
+@[noreturn]
 fn (p Parser) token_err(s string) {
 	program := p.program.split_into_lines()[p.tok.line - 1]
 	here := [' '].repeat(p.tok.pos).join('')
-	unexp_err(p.tok, '$s\n$program\n$here^here')
+	unexp_err(p.tok, '${s}\n${program}\n${here}^here')
 }
 
 fn (mut p Parser) check(kind token.Kind) {
 	if p.tok.kind != kind {
-		p.token_err('Expected $kind')
+		p.token_err('Expected ${kind}')
 	}
 }

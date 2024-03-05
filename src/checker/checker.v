@@ -7,7 +7,7 @@ pub struct Checker {
 mut:
 	curfn_scope []ast.ScopeTable
 	curscope    int = -1
-	labels map[string]Label
+	labels      map[string]Label
 pub mut:
 	funs map[string]ast.FunctionDecl
 }
@@ -15,7 +15,7 @@ pub mut:
 struct Label {
 mut:
 	defined bool
-	used bool
+	used    bool
 }
 
 pub fn (mut c Checker) top() {
@@ -26,7 +26,7 @@ pub fn (mut c Checker) top() {
 		c.stmt(mut func.body)
 		for name, label in c.labels {
 			if label.used && !label.defined {
-				panic('label $name is not defined')
+				panic('label ${name} is not defined')
 			}
 		}
 	}
@@ -83,7 +83,9 @@ fn (mut c Checker) stmt(mut stmt ast.Stmt) {
 			if stmt_.name in c.labels {
 				c.labels[stmt_.name].used = true
 			} else {
-				c.labels[stmt_.name] = Label{used: true}
+				c.labels[stmt_.name] = Label{
+					used: true
+				}
 			}
 		}
 		ast.IfStmt {
@@ -97,11 +99,13 @@ fn (mut c Checker) stmt(mut stmt ast.Stmt) {
 			mut stmt_ := stmt as ast.LabelStmt
 			if stmt_.name in c.labels {
 				if c.labels[stmt_.name].defined {
-					panic('label $stmt_.name is already defined')
+					panic('label ${stmt_.name} is already defined')
 				}
 				c.labels[stmt_.name].defined = true
 			} else {
-				c.labels[stmt_.name] = Label{defined: true}
+				c.labels[stmt_.name] = Label{
+					defined: true
+				}
 			}
 			c.stmt(mut stmt_.stmt)
 			stmt = stmt_
@@ -174,9 +178,7 @@ fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 		}
 		ast.GvarLiteral {
 			name := (expr as ast.GvarLiteral).name
-			mut typ := c.globalscope.types[name] or {
-				panic('Global variable $name not found')
-			}
+			mut typ := c.globalscope.types[name] or { panic('Global variable ${name} not found') }
 			typ.decls = typ.decls.clone()
 			return typ
 		}
@@ -196,7 +198,7 @@ fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 				}
 				scopeid = scope.parent
 			}
-			panic('Local variable $name not found')
+			panic('Local variable ${name} not found')
 		}
 		ast.SelectorExpr {
 			return ast.Type{
@@ -261,7 +263,7 @@ fn (mut c Checker) expr(mut expr ast.Expr) ast.Type {
 fn extend(lhs ast.Type, rhs ast.Type) ast.Type {
 	if lhs.decls.len != 0 || rhs.decls.len != 0 || lhs.base !is ast.Numerical
 		|| rhs.base !is ast.Numerical {
-			panic('Internal type error\nlhs:\n$lhs\nrhs:\n$rhs')
+		panic('Internal type error\nlhs:\n${lhs}\nrhs:\n${rhs}')
 	}
 	lhs_num := lhs.base as ast.Numerical
 	rhs_num := rhs.base as ast.Numerical

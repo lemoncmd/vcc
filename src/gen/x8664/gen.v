@@ -12,8 +12,8 @@ mut:
 	curscope    int = -1
 	labelid     int
 	strings     []string
-	breakpoint []string
-	contpoint []string
+	breakpoint  []string
+	contpoint   []string
 pub mut:
 	out strings.Builder
 }
@@ -49,9 +49,9 @@ pub fn (mut g Gen) gen() {
 		}
 		storage := g.globalscope.storages[name]
 		if storage != .@static {
-			g.writeln('.global $name')
+			g.writeln('.global ${name}')
 		}
-		g.writeln('$name:')
+		g.writeln('${name}:')
 		g.writeln('.zero ${get_type_size(typ)}')
 	}
 	g.writeln('.text')
@@ -60,12 +60,12 @@ pub fn (mut g Gen) gen() {
 		g.curfn_scope = func.scopes
 		frame_size := g.set_fn_offset()
 		// TODO static
-		g.writeln('.global $name')
-		g.writeln('$name:')
+		g.writeln('.global ${name}')
+		g.writeln('${name}:')
 
 		g.writeln('  push rbp')
 		g.writeln('  mov rbp, rsp')
-		g.writeln('  sub rsp, $frame_size')
+		g.writeln('  sub rsp, ${frame_size}')
 
 		typ := func.typ.decls.last() as ast.Function
 		reglen := if typ.args.len > 6 { 6 } else { typ.args.len }
@@ -75,7 +75,7 @@ pub fn (mut g Gen) gen() {
 			if (lvar_typ.decls.len == 0 && lvar_typ.base is ast.Numerical)
 				|| (lvar_typ.decls.len != 0 && lvar_typ.decls.last() is ast.Pointer) {
 				size := get_type_size(lvar_typ)
-				g.writeln('  mov ${get_size_str(size)} ptr [rbp - $offset], ${get_register(regs[i],
+				g.writeln('  mov ${get_size_str(size)} ptr [rbp - ${offset}], ${get_register(regs[i],
 					size)}')
 			}
 		}
@@ -83,15 +83,15 @@ pub fn (mut g Gen) gen() {
 
 		g.gen_stmt(func.body)
 
-		g.writeln('.L.return.$name:')
+		g.writeln('.L.return.${name}:')
 		g.writeln('  mov rsp, rbp')
 		g.writeln('  pop rbp')
 		g.writeln('  ret')
 	}
 	g.writeln('.data')
 	for i, str in g.strings {
-		g.writeln('.L.string.$i:')
-		g.writeln('  .string "$str"')
+		g.writeln('.L.string.${i}:')
+		g.writeln('  .string "${str}"')
 	}
 }
 
@@ -111,24 +111,24 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 			g.gen_expr(stmt.cond)
 			g.writeln('  test rax, rax')
 			if has_else {
-				g.writeln('  je .L.ifelse.$label')
+				g.writeln('  je .L.ifelse.${label}')
 			} else {
-				g.writeln('  je .L.ifend.$label')
+				g.writeln('  je .L.ifend.${label}')
 			}
 			g.gen_stmt(stmt.stmt)
 			if has_else {
-				g.writeln('  jmp .L.ifend.$label')
-				g.writeln('.L.ifelse.$label:')
+				g.writeln('  jmp .L.ifend.${label}')
+				g.writeln('.L.ifelse.${label}:')
 				g.gen_stmt(stmt.else_stmt)
 			}
-			g.writeln('.L.ifend.$label:')
+			g.writeln('.L.ifend.${label}:')
 		}
 		ast.ForStmt {
 			label := g.get_label()
 			parent := g.curscope
 			g.curscope = stmt.id
-			g.breakpoint << '.L.forend.$label'
-			g.contpoint << '.L.fornext.$label'
+			g.breakpoint << '.L.forend.${label}'
+			g.contpoint << '.L.fornext.${label}'
 			match stmt.first {
 				ast.DeclStmt {
 					g.gen_stmt(stmt.first)
@@ -138,60 +138,60 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 				}
 				else {}
 			}
-			g.writeln('  jmp .L.forcond.$label')
-			g.writeln('.L.forstmt.$label:')
+			g.writeln('  jmp .L.forcond.${label}')
+			g.writeln('.L.forstmt.${label}:')
 			g.gen_stmt(stmt.stmt)
-			g.writeln('.L.fornext.$label:')
+			g.writeln('.L.fornext.${label}:')
 			g.gen_expr(stmt.next)
-			g.writeln('.L.forcond.$label:')
+			g.writeln('.L.forcond.${label}:')
 			g.gen_expr(stmt.cond)
 			g.writeln('  test rax, rax')
-			g.writeln('  jne .L.forstmt.$label')
-			g.writeln('.L.forend.$label:')
+			g.writeln('  jne .L.forstmt.${label}')
+			g.writeln('.L.forend.${label}:')
 			g.breakpoint.pop()
 			g.contpoint.pop()
 			g.curscope = parent
 		}
 		ast.WhileStmt {
 			label := g.get_label()
-			g.breakpoint << '.L.whileend.$label'
-			g.contpoint << '.L.whilecond.$label'
-			g.writeln('.L.whilecond.$label:')
+			g.breakpoint << '.L.whileend.${label}'
+			g.contpoint << '.L.whilecond.${label}'
+			g.writeln('.L.whilecond.${label}:')
 			g.gen_expr(stmt.cond)
 			g.writeln('  test rax, rax')
-			g.writeln('  je .L.whileend.$label')
+			g.writeln('  je .L.whileend.${label}')
 			g.gen_stmt(stmt.stmt)
-			g.writeln('  jmp .L.whilecond.$label')
-			g.writeln('.L.whileend.$label:')
+			g.writeln('  jmp .L.whilecond.${label}')
+			g.writeln('.L.whileend.${label}:')
 			g.breakpoint.pop()
 			g.contpoint.pop()
 		}
 		ast.DoStmt {
 			label := g.get_label()
-			g.breakpoint << '.L.doend.$label'
-			g.contpoint << '.L.docond.$label'
-			g.writeln('.L.dostart.$label:')
+			g.breakpoint << '.L.doend.${label}'
+			g.contpoint << '.L.docond.${label}'
+			g.writeln('.L.dostart.${label}:')
 			g.gen_stmt(stmt.stmt)
-			g.writeln('.L.docond.$label:')
+			g.writeln('.L.docond.${label}:')
 			g.gen_expr(stmt.cond)
 			g.writeln('  test rax, rax')
-			g.writeln('  jne .L.dostart.$label')
-			g.writeln('.L.doend.$label:')
+			g.writeln('  jne .L.dostart.${label}')
+			g.writeln('.L.doend.${label}:')
 			g.breakpoint.pop()
 			g.contpoint.pop()
 		}
 		ast.BreakStmt {
-			g.writeln('  jmp $g.breakpoint.last()')
+			g.writeln('  jmp ${g.breakpoint.last()}')
 		}
 		ast.ContinueStmt {
-			g.writeln('  jmp $g.contpoint.last()')
+			g.writeln('  jmp ${g.contpoint.last()}')
 		}
 		ast.DeclStmt {
 			for decl in stmt.decls {
 				expr := decl.init as ast.Expr
 				g.gen_expr(expr)
 				typ, _, offset := g.find_lvar(decl.name)
-				g.writeln('  lea rdx, [rbp - $offset]')
+				g.writeln('  lea rdx, [rbp - ${offset}]')
 				size := get_type_size(typ)
 				g.writeln('  mov ${get_size_str(size)} ptr [rdx], ${get_register(.rax,
 					size)}')
@@ -202,18 +202,18 @@ pub fn (mut g Gen) gen_stmt(stmt ast.Stmt) {
 		}
 		ast.ReturnStmt {
 			g.gen_expr(stmt.expr)
-			g.writeln('  jmp .L.return.$g.curfn_name')
+			g.writeln('  jmp .L.return.${g.curfn_name}')
 		}
 		ast.EmptyStmt {}
 		ast.LabelStmt {
-			g.writeln('.L.label.$stmt.name:')
+			g.writeln('.L.label.${stmt.name}:')
 			g.gen_stmt(stmt.stmt)
 		}
 		ast.GotoStmt {
-			g.writeln('  jmp .L.label.$stmt.name')
+			g.writeln('  jmp .L.label.${stmt.name}')
 		}
 		else {
-			panic('unsupported stmt: $stmt')
+			panic('unsupported stmt: ${stmt}')
 		}
 	}
 }
@@ -222,11 +222,11 @@ fn (mut g Gen) gen_lval(expr ast.Expr) ast.Type {
 	match expr {
 		ast.LvarLiteral {
 			typ, _, offset := g.find_lvar(expr.name)
-			g.writeln('  lea rax, [rbp - $offset]')
+			g.writeln('  lea rax, [rbp - ${offset}]')
 			return typ
 		}
 		ast.GvarLiteral {
-			g.writeln('  lea rax, [$expr.name]')
+			g.writeln('  lea rax, [${expr.name}]')
 			return if typ := g.globalscope.types[expr.name] {
 				typ
 			} else {
@@ -240,7 +240,7 @@ fn (mut g Gen) gen_lval(expr ast.Expr) ast.Type {
 			return expr.typ
 		}
 		else {
-			panic('unexpected left value: $expr')
+			panic('unexpected left value: ${expr}')
 		}
 	}
 	return ast.Type{
@@ -250,7 +250,7 @@ fn (mut g Gen) gen_lval(expr ast.Expr) ast.Type {
 
 fn (mut g Gen) gen_load(dst Register, src string, typ ast.Type) {
 	if typ.decls.len != 0 && typ.decls.last() is ast.Pointer {
-		g.writeln('  mov $dst, qword ptr [$src]')
+		g.writeln('  mov ${dst}, qword ptr [${src}]')
 	}
 	if typ.decls.len == 0 {
 		if typ.base is ast.Numerical {
@@ -263,7 +263,7 @@ fn (mut g Gen) gen_load(dst Register, src string, typ ast.Type) {
 			}
 			dst_str := get_register(dst, if typ.base in [.uint, .ulong] { 4 } else { 8 })
 			size := get_size_str(get_type_size(typ))
-			g.writeln('  $instruction $dst_str, $size ptr [$src]')
+			g.writeln('  ${instruction} ${dst_str}, ${size} ptr [${src}]')
 		}
 	}
 }
@@ -282,9 +282,9 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 				get_pointer_type_size(typ)
 			}
 			g.writeln(if expr.op == .inc {
-				'  add $size ptr [rax], $incr'
+				'  add ${size} ptr [rax], ${incr}'
 			} else {
-				'  sub $size ptr [rax], $incr'
+				'  sub ${size} ptr [rax], ${incr}'
 			})
 			if expr.is_front {
 				g.gen_load(.rax, 'rax', typ)
@@ -307,10 +307,10 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 			g.writeln('  call rbx')
 		}
 		ast.IntegerLiteral {
-			g.writeln('  mov rax, $expr.val')
+			g.writeln('  mov rax, ${expr.val}')
 		}
 		ast.StringLiteral {
-			g.writeln('  lea rax, [.L.string.$g.strings.len]')
+			g.writeln('  lea rax, [.L.string.${g.strings.len}]')
 			g.strings << expr.val
 		}
 		ast.BinaryExpr {
@@ -333,9 +333,9 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 		ast.LvarLiteral {
 			typ, _, offset := g.find_lvar(expr.name)
 			if typ.decls.len != 0 && typ.decls.last() is ast.Array {
-				g.writeln('  lea rax, [rbp - $offset]')
+				g.writeln('  lea rax, [rbp - ${offset}]')
 			} else {
-				g.gen_load(.rax, 'rbp - $offset', typ)
+				g.gen_load(.rax, 'rbp - ${offset}', typ)
 			}
 		}
 		ast.GvarLiteral {
@@ -347,29 +347,29 @@ pub fn (mut g Gen) gen_expr(expr ast.Expr) {
 				}
 			}
 			if typ.decls.len != 0 && typ.decls.last() is ast.Array {
-				g.writeln('  lea rax, [$expr.name]')
+				g.writeln('  lea rax, [${expr.name}]')
 			} else {
-				g.gen_load(.rax, '$expr.name', typ)
+				g.gen_load(.rax, '${expr.name}', typ)
 			}
 		}
 		ast.SizeofExpr {
 			typ := expr as ast.Type
 			size := get_type_size(typ)
-			g.writeln('  mov rax, $size')
+			g.writeln('  mov rax, ${size}')
 		}
 		ast.TernaryExpr {
 			label := g.get_label()
 			g.gen_expr(expr.cond)
 			g.writeln('  test rax, rax')
-			g.writeln('  je .L.ifelse.$label')
+			g.writeln('  je .L.ifelse.${label}')
 			g.gen_expr(expr.left)
-			g.writeln('  jmp .L.ifend.$label')
-			g.writeln('.L.ifelse.$label:')
+			g.writeln('  jmp .L.ifend.${label}')
+			g.writeln('.L.ifelse.${label}:')
 			g.gen_expr(expr.right)
-			g.writeln('.L.ifend.$label:')
+			g.writeln('.L.ifend.${label}:')
 		}
 		else {
-			panic('unsupported expr $expr')
+			panic('unsupported expr ${expr}')
 		}
 	}
 }
@@ -413,9 +413,13 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 		typ := g.gen_lval(expr.left)
 		g.writeln('  push rax')
 		g.gen_expr(expr.right)
-		g.writeln('  pop ' + if expr.op in [.ls_assign, .rs_assign] { 'rcx' } else {'rdx'})
+		g.writeln('  pop ' + if expr.op in [.ls_assign, .rs_assign] { 'rcx' } else { 'rdx' })
 		typ, get_type_size(typ)
-	} else { ast.Type{base: ast.Void{}}, 0 }
+	} else {
+		ast.Type{
+			base: ast.Void{}
+		}, 0
+	}
 	match expr.op {
 		.plus {
 			g.writeln('  add rax, rdx')
@@ -457,7 +461,7 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 				else { '' }
 			}
 			g.writeln('  cmp rax, rdx')
-			g.writeln('  set$cmd al')
+			g.writeln('  set${cmd} al')
 			g.writeln('  movzx eax, al')
 		}
 		.comma {
@@ -482,29 +486,29 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 			label := g.get_label()
 			g.gen_expr(expr.left)
 			g.writeln('  test rax, rax')
-			g.writeln('  je .L.andfalse.$label')
+			g.writeln('  je .L.andfalse.${label}')
 			g.gen_expr(expr.right)
 			g.writeln('  test rax, rax')
-			g.writeln('  je .L.andfalse.$label')
+			g.writeln('  je .L.andfalse.${label}')
 			g.writeln('  mov rax, 1')
-			g.writeln('  jmp .L.andend.$label')
-			g.writeln('.L.andfalse.$label:')
+			g.writeln('  jmp .L.andend.${label}')
+			g.writeln('.L.andfalse.${label}:')
 			g.writeln('  mov rax, 0')
-			g.writeln('.L.andend.$label:')
+			g.writeln('.L.andend.${label}:')
 		}
 		.lor {
 			label := g.get_label()
 			g.gen_expr(expr.left)
 			g.writeln('  test rax, rax')
-			g.writeln('  jne .L.ortrue.$label')
+			g.writeln('  jne .L.ortrue.${label}')
 			g.gen_expr(expr.right)
 			g.writeln('  test rax, rax')
-			g.writeln('  jne .L.ortrue.$label')
+			g.writeln('  jne .L.ortrue.${label}')
 			g.writeln('  mov rax, 0')
-			g.writeln('  jmp .L.orend.$label')
-			g.writeln('.L.ortrue.$label:')
+			g.writeln('  jmp .L.orend.${label}')
+			g.writeln('.L.ortrue.${label}:')
 			g.writeln('  mov rax, 1')
-			g.writeln('.L.orend.$label:')
+			g.writeln('.L.orend.${label}:')
 		}
 		.assign {
 			g.writeln('  mov ${get_size_str(size)} ptr [rdx], ${get_register(.rax, size)}')
@@ -552,7 +556,7 @@ pub fn (mut g Gen) gen_binary(expr ast.BinaryExpr) {
 			g.gen_load(.rax, 'rdx', typ)
 		}
 		else {
-			panic('unsupported binary expr $expr')
+			panic('unsupported binary expr ${expr}')
 		}
 	}
 }
